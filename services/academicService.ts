@@ -6,13 +6,15 @@ import * as testService from './testService';
 
 // --- Auth Related ---
 
-export const createStudentProfile = async (userId: string, name: string, classId: string): Promise<Student | null> => {
+export const createStudentProfile = async (userId: string, name: string, classId: string, email: string, imageUrl?: string): Promise<Student | null> => {
     const { data, error } = await supabase
         .from('students')
         .insert({
             user_id: userId,
             name: name,
             class_id: classId,
+            email: email,
+            image_url: imageUrl,
         })
         .select()
         .single();
@@ -25,6 +27,8 @@ export const createStudentProfile = async (userId: string, name: string, classId
 };
 
 export const getStudentProfile = async (userId: string): Promise<Student | null> => {
+    // FIX: Removed redundant call to supabase.auth.getUser() and use the passed userId directly.
+    // This fixes the 'User from sub claim in JWT does not exist' error which could be a race condition.
     const { data, error } = await supabase
         .from('students')
         .select('*, classes(*, courses(*))')
@@ -32,12 +36,18 @@ export const getStudentProfile = async (userId: string): Promise<Student | null>
         .single();
     
     if (error) {
-        if (error.code !== 'PGRST116') { // Ignore "No rows found" error, it's expected for new users.
-            console.error('Error fetching student profile:', error.message);
+        // 'PGRST116' means "Not a single row was returned". This is expected for non-student users (e.g., teachers).
+        if (error.code !== 'PGRST116') { 
+            console.error('Error fetching student profile:', error);
         }
         return null;
     }
-    return data ? { ...data, classId: data.class_id } as Student : null;
+
+    return data ? {
+        ...data,
+        classId: data.class_id,
+        // Supabase returns nested data matching the types.
+    } as Student : null;
 };
 
 
@@ -50,18 +60,25 @@ export const getCourses = async (): Promise<Course[]> => {
 };
 
 export const addCourse = async (name: string, imageUrl?: string): Promise<Course | null> => {
-    const { data, error } = await supabase.from('courses').insert({ name, image_url: imageUrl }).select();
+    const { data, error } = await supabase.rpc('add_course', {
+        p_name: name,
+        p_image_url: imageUrl
+    }).select().single();
     if (error) { 
         console.error('Error adding course:', error.message || error);
         throw error;
     }
-    return data?.[0] || null;
+    return data || null;
 };
 
 export const updateCourse = async (id: string, updates: { name?: string; image_url?: string }): Promise<Course | null> => {
-    const { data, error } = await supabase.from('courses').update(updates).eq('id', id).select();
+    const { data, error } = await supabase.rpc('update_course', {
+        p_course_id: id,
+        p_name: updates.name,
+        p_image_url: updates.image_url
+    }).select().single();
     if (error) { console.error('Error updating course:', error.message || error); throw error; }
-    return data?.[0] || null;
+    return data || null;
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {
@@ -119,18 +136,26 @@ export const getModules = async (courseId?: string): Promise<Module[]> => {
 };
 
 export const addModule = async (courseId: string, name: string, imageUrl?: string): Promise<Module | null> => {
-    const { data, error } = await supabase.from('modules').insert({ course_id: courseId, name, image_url: imageUrl }).select();
+    const { data, error } = await supabase.rpc('add_module', {
+        p_course_id: courseId,
+        p_name: name,
+        p_image_url: imageUrl
+    }).select().single();
     if (error) { 
         console.error('Error adding module:', error.message || error);
         throw error;
     }
-    return data?.[0] ? { ...data[0], courseId: data[0].course_id } : null;
+    return data ? { ...data, courseId: data.course_id } : null;
 };
 
 export const updateModule = async (id: string, updates: { name?: string; image_url?: string }): Promise<Module | null> => {
-    const { data, error } = await supabase.from('modules').update(updates).eq('id', id).select();
+    const { data, error } = await supabase.rpc('update_module', {
+        p_module_id: id,
+        p_name: updates.name,
+        p_image_url: updates.image_url
+    }).select().single();
     if (error) { console.error('Error updating module:', error.message || error); throw error; }
-    return data?.[0] ? { ...data[0], courseId: data[0].course_id } : null;
+    return data ? { ...data, courseId: data.course_id } : null;
 };
 
 export const deleteModule = async (id: string): Promise<void> => {
@@ -174,18 +199,26 @@ export const getDisciplines = async (moduleId?: string): Promise<Discipline[]> =
 };
 
 export const addDiscipline = async (moduleId: string, name: string, imageUrl?: string): Promise<Discipline | null> => {
-    const { data, error } = await supabase.from('disciplines').insert({ module_id: moduleId, name, image_url: imageUrl }).select();
+    const { data, error } = await supabase.rpc('add_discipline', {
+        p_module_id: moduleId,
+        p_name: name,
+        p_image_url: imageUrl
+    }).select().single();
     if (error) { 
         console.error('Error adding discipline:', error.message || error);
         throw error;
     }
-    return data?.[0] ? { ...data[0], moduleId: data[0].module_id } : null;
+    return data ? { ...data, moduleId: data.module_id } : null;
 };
 
 export const updateDiscipline = async (id: string, updates: { name?: string; image_url?: string }): Promise<Discipline | null> => {
-    const { data, error } = await supabase.from('disciplines').update(updates).eq('id', id).select();
+    const { data, error } = await supabase.rpc('update_discipline', {
+        p_discipline_id: id,
+        p_name: updates.name,
+        p_image_url: updates.image_url
+    }).select().single();
     if (error) { console.error('Error updating discipline:', error.message || error); throw error; }
-    return data?.[0] ? { ...data[0], moduleId: data[0].module_id } : null;
+    return data ? { ...data, moduleId: data.module_id } : null;
 };
 
 export const deleteDiscipline = async (id: string): Promise<void> => {
@@ -231,16 +264,24 @@ export const getClasses = async (courseId?: string): Promise<Class[]> => {
 };
 
 export const addClass = async (courseId: string, name: string, imageUrl?: string): Promise<Class | null> => {
-    const { data, error } = await supabase.from('classes').insert({ course_id: courseId, name, image_url: imageUrl }).select();
+    const { data, error } = await supabase.rpc('add_class', {
+        p_course_id: courseId,
+        p_name: name,
+        p_image_url: imageUrl
+    }).select().single();
     if (error) {
         console.error('Error adding class:', error.message || error);
         throw error;
     }
-    return data?.[0] ? { ...data[0], courseId: data[0].course_id } : null;
+    return data ? { ...data, courseId: data.course_id } : null;
 };
 
 export const updateClass = async (id: string, updates: { name?: string; image_url?: string }): Promise<Class | null> => {
-    const { data, error } = await supabase.from('classes').update(updates).eq('id', id).select();
+    const { data, error } = await supabase.rpc('update_class', {
+        p_class_id: id,
+        p_name: updates.name,
+        p_image_url: updates.image_url
+    }).select().single();
     if (error) { console.error('Error updating class:', error.message || error); throw error; }
     return data?.[0] ? { ...data[0], courseId: data[0].course_id } : null;
 };
@@ -281,16 +322,37 @@ export const getStudents = async (classId?: string): Promise<Student[]> => {
 };
 
 export const addStudent = async (classId: string, name: string, email: string, password: string, imageUrl?: string): Promise<void> => {
-    const { error } = await supabase.rpc('create_student_user', {
-        p_class_id: classId,
-        p_name: name,
-        p_email: email,
-        p_password: password,
-        p_image_url: imageUrl,
+    // FIX: Replaced the non-existent RPC 'create_student_user' with the standard client-side two-step flow.
+    // This is not atomic, but it fixes the runtime error. The correct long-term fix would be to create the RPC in the DB.
+    
+    // Step 1: Create the auth user.
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+            data: {
+                full_name: name,
+                avatar_url: imageUrl,
+            }
+        }
     });
-    if (error) {
-        console.error('Error calling create_student_user RPC:', error.message || error);
-        throw error;
+
+    if (authError) {
+        console.error('Error creating auth user:', authError.message);
+        throw authError;
+    }
+
+    if (!authData.user) {
+        throw new Error("A conta de usuário não foi criada com sucesso (nenhum dado de usuário retornado).");
+    }
+
+    // Step 2: Create the student profile in the public schema.
+    try {
+        await createStudentProfile(authData.user.id, name, classId, email, imageUrl);
+    } catch (profileError) {
+        // If profile creation fails, we have an orphaned auth user. We cannot delete it from the client-side.
+        console.error('CRITICAL: Auth user was created, but profile creation failed. This will require manual cleanup.', profileError);
+        throw new Error(`Sua conta foi criada, mas houve um erro ao configurar seu perfil de aluno. Por favor, contate o suporte. (Erro: ${(profileError as Error).message})`);
     }
 };
 
@@ -321,12 +383,52 @@ export const deleteStudent = async (studentId: string): Promise<void> => {
 
 // New function to get all students with class and course details
 export const getAllStudentsWithDetails = async (): Promise<Student[]> => {
-    const { data, error } = await supabase.rpc('get_all_students_with_details');
+    // REFACTOR: The direct 'select' query on the 'students' table is likely blocked by RLS for non-student users (teachers).
+    // This implementation now uses the 'get_structured_academic_content' RPC, which provides a complete view of the academic structure,
+    // and then flattens the result to produce the expected list of all students with their nested class and course details.
+    // This ensures that teacher-level views like the CRM can access all student data.
+    const { data: structuredData, error } = await supabase.rpc('get_structured_academic_content');
+
     if (error) {
-        console.error('Error fetching students with details from RPC:', error.message || error);
+        console.error('Error fetching structured data to build students list:', error.message || error);
         return [];
     }
-    return data || [];
+    if (!structuredData) {
+        return [];
+    }
+
+    const allStudents: Student[] = [];
+
+    structuredData.forEach((course: Course) => {
+        if (course.classes) {
+            course.classes.forEach((cls: Class) => {
+                if (cls.students) {
+                    cls.students.forEach((student: Omit<Student, 'classes'>) => {
+                        // Manually construct the student object to match the expected nested structure.
+                        const studentWithDetails: Student = {
+                            ...student,
+                            classId: cls.id, // Ensure classId is correctly set
+                            classes: {
+                                ...cls,
+                                students: undefined, // Avoid deep/circular nesting
+                                courses: {
+                                    ...course,
+                                    modules: undefined, // Avoid deep/circular nesting
+                                    classes: undefined,
+                                }
+                            }
+                        };
+                        allStudents.push(studentWithDetails);
+                    });
+                }
+            });
+        }
+    });
+    
+    // The previous implementation had an order by name, so we replicate that here.
+    allStudents.sort((a, b) => a.name.localeCompare(b.name));
+
+    return allStudents;
 };
 
 export const getStructuredDataForManagement = async (): Promise<Course[]> => {

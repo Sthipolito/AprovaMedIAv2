@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
 import LandingPage from './LandingPage';
 import ChatView from './ChatView';
 import Sidebar from './Sidebar';
@@ -41,6 +42,10 @@ const TeacherApp: React.FC = () => {
         setCurrentView('landing');
     };
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
+
     useEffect(() => {
         if (currentView === 'chat' && (!pdfFile || !pdfText)) {
             setCurrentView('landing');
@@ -74,8 +79,8 @@ const TeacherApp: React.FC = () => {
 
     return (
         <UserProvider>
-            <div className="flex h-screen w-screen bg-gray-100">
-                <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+            <div className="flex h-full w-full bg-gray-100">
+                <Sidebar currentView={currentView} setCurrentView={setCurrentView} onLogout={handleLogout} />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {renderView()}
                 </div>

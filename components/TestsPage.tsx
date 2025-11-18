@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ClipboardListIcon, PlusCircleIcon } from './IconComponents';
 import * as testService from '../services/testService';
 import { TestWithAnalytics } from '../services/testService';
+import * as academicService from '../services/academicService';
+import { Course } from '../types';
 import TestCard from './TestCard';
 import CreateTestModal from './CreateTestModal';
 import TestDetailModal from './TestDetailModal';
@@ -9,19 +11,53 @@ import EditTestModal from './EditTestModal';
 
 type ActiveTab = 'fixed' | 'scheduled';
 
+type TestWithContext = TestWithAnalytics & {
+    moduleName?: string;
+    disciplineName?: string;
+};
+
 const TestsPage: React.FC = () => {
-    const [allTests, setAllTests] = useState<TestWithAnalytics[]>([]);
+    const [allTests, setAllTests] = useState<TestWithContext[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<ActiveTab>('fixed');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [viewingTest, setViewingTest] = useState<TestWithAnalytics | null>(null);
-    const [editingTest, setEditingTest] = useState<TestWithAnalytics | null>(null);
+    const [viewingTest, setViewingTest] = useState<TestWithContext | null>(null);
+    const [editingTest, setEditingTest] = useState<TestWithContext | null>(null);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const testsData = await testService.getTestsWithAnalytics();
-            setAllTests(testsData);
+            const [testsData, bankData] = await Promise.all([
+                testService.getTestsWithAnalytics(),
+                academicService.getStructuredDataForManagement(),
+            ]);
+
+            const moduleMap = new Map<string, { name: string; }>();
+            const disciplineMap = new Map<string, { name: string; moduleId: string }>();
+
+            bankData.forEach(course => {
+                course.modules?.forEach(module => {
+                    moduleMap.set(module.id, { name: module.name });
+                    module.disciplines?.forEach(discipline => {
+                        disciplineMap.set(discipline.id, { name: discipline.name, moduleId: module.id });
+                    });
+                });
+            });
+
+            const testsWithContext = testsData.map(test => {
+                const discipline = test.discipline_id ? disciplineMap.get(test.discipline_id) : undefined;
+                const module = test.module_id 
+                    ? moduleMap.get(test.module_id) 
+                    : (discipline ? moduleMap.get(discipline.moduleId) : undefined);
+                
+                return {
+                    ...test,
+                    disciplineName: discipline?.name,
+                    moduleName: module?.name,
+                };
+            });
+
+            setAllTests(testsWithContext);
         } catch (error) {
             console.error("Failed to fetch tests:", error);
         } finally {

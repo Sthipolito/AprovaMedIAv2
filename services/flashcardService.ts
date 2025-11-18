@@ -24,18 +24,19 @@ export const getOrCreateSession = async (studentId: string, questionSetId: strin
  * Salva a resposta de um aluno a um flashcard.
  */
 export const saveFlashcardResponse = async (response: Omit<FlashcardResponse, 'id'>): Promise<FlashcardResponse | null> => {
-    const { data, error } = await supabase
-        .from('flashcard_responses')
-        .insert(response)
-        .select()
-        .single();
+    const { data, error } = await supabase.rpc('save_my_flashcard_response', {
+        p_session_id: response.session_id,
+        p_question_index: response.question_index,
+        p_was_correct: response.was_correct,
+        p_used_ai_hint: response.used_ai_hint,
+    }).single();
 
     if (error) {
-        console.error('Error saving flashcard response:', error.message || error);
+        console.error('Error saving flashcard response via RPC:', error.message || error);
         return null;
     }
 
-    return data;
+    return data as FlashcardResponse | null;
 };
 
 /**

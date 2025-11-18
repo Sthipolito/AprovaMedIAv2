@@ -8,9 +8,10 @@ import { UserRole } from '../types';
 interface SidebarProps {
     currentView: View;
     setCurrentView: (view: View) => void;
+    onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout }) => {
     const { userRole, setUserRole, allStudents } = useUser();
     const [isProfileSelectorOpen, setIsProfileSelectorOpen] = useState(false);
     const selectorRef = useRef<HTMLDivElement>(null);
@@ -45,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
     const currentRoleLabel = userRole.role === 'teacher' ? 'Professor' : userRole.studentName;
 
     return (
-        <aside className="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0 h-screen">
+        <aside className="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
             <div className="p-2 border-b border-gray-700 flex items-center justify-center">
                  <img src={logoUrl} alt="AprovaMed IA Logo" className="w-full h-auto" />
             </div>
@@ -72,45 +73,54 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
                 </ul>
             </nav>
 
-            <div ref={selectorRef} className="relative p-4 border-t border-gray-700">
-                {isProfileSelectorOpen && (
-                    <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        <ul className="space-y-1">
-                            <li>
-                                <button
-                                    onClick={() => handleRoleChange({ role: 'teacher' })}
-                                    className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-600"
-                                >
-                                    Professor
-                                </button>
-                            </li>
-                            {allStudents.map(student => (
-                                <li key={student.id}>
+            <div className="p-4 border-t border-gray-700 space-y-4">
+                <div ref={selectorRef} className="relative">
+                    {isProfileSelectorOpen && (
+                        <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            <ul className="space-y-1">
+                                <li>
                                     <button
-                                        onClick={() => handleRoleChange({ role: 'student', studentId: student.id, studentName: student.name })}
+                                        onClick={() => handleRoleChange({ role: 'teacher' })}
                                         className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-600"
                                     >
-                                        {student.name}
+                                        Professor
                                     </button>
                                 </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                                {allStudents.map(student => (
+                                    <li key={student.id}>
+                                        <button
+                                            onClick={() => handleRoleChange({ role: 'student', studentId: student.id, studentName: student.name })}
+                                            className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-600"
+                                        >
+                                            {student.name}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setIsProfileSelectorOpen(!isProfileSelectorOpen)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 hover:bg-gray-700 transition-colors"
+                    >
+                        <UserCheckIcon className="w-5 h-5 text-primary-light" />
+                        <div>
+                            <p className="text-xs text-gray-400">Visualizando como:</p>
+                            <p className="font-semibold text-white truncate">{currentRoleLabel}</p>
+                        </div>
+                    </button>
+                </div>
+                
                 <button
-                    onClick={() => setIsProfileSelectorOpen(!isProfileSelectorOpen)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 hover:bg-gray-700 transition-colors"
+                    onClick={onLogout}
+                    className="w-full px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"
                 >
-                    <UserCheckIcon className="w-5 h-5 text-primary-light" />
-                    <div>
-                        <p className="text-xs text-gray-400">Visualizando como:</p>
-                        <p className="font-semibold text-white truncate">{currentRoleLabel}</p>
-                    </div>
+                    Sair
                 </button>
-            </div>
 
-            <div className="p-4 border-t border-gray-700 text-center text-xs text-gray-400">
-                <p>&copy; {new Date().getFullYear()} AprovaMed IA</p>
+                <div className="pt-2 text-center text-xs text-gray-400">
+                    <p>&copy; {new Date().getFullYear()} AprovaMed IA</p>
+                </div>
             </div>
         </aside>
     );

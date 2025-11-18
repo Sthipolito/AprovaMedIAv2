@@ -22,7 +22,7 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ studentName, currentVie
     const logoUrl = "https://pub-872633efa2d545638be12ea86363c2ca.r2.dev/WhatsApp%20Image%202025-11-09%20at%2013.47.15%20(1).png";
 
     return (
-        <aside className="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0 h-screen">
+        <aside className="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
             <div className="p-2 border-b border-gray-700 flex items-center justify-center">
                  <img src={logoUrl} alt="AprovaMed IA Logo" className="w-full h-auto" />
             </div>

@@ -4,6 +4,7 @@ import { XIcon, LightbulbIcon, InfoIcon, CheckCircleIcon, XCircleIcon, RefreshCw
 import * as flashcardService from '../services/flashcardService';
 import * as crmService from '../services/crmService';
 import * as geminiService from '../services/geminiService';
+import { supabase } from '../services/supabaseClient';
 
 const StatPill: React.FC<{ icon: React.ElementType, value: number, label: string, color: string }> = ({ icon: Icon, value, label, color }) => (
     <div className={`flex items-center gap-2 p-2 rounded-full text-sm font-semibold ${color}`}>
@@ -38,8 +39,23 @@ const FlashcardModal: React.FC<FlashcardModalProps> = ({ studentId, questionSet,
     const [isRatingPopoverOpen, setIsRatingPopoverOpen] = useState(false);
     const [awaitingRatingForHint, setAwaitingRatingForHint] = useState(false);
     
-    const isPersistent = useMemo(() => questionSet.id !== 'chat-session-set', [questionSet.id]);
+    const [isOwner, setIsOwner] = useState(false); // New state to check if the session belongs to the logged-in user
 
+    useEffect(() => {
+        const checkOwnership = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: studentData } = await supabase.from('students').select('user_id').eq('id', studentId).single();
+                setIsOwner(studentData ? studentData.user_id === user.id : false);
+            } else {
+                setIsOwner(false);
+            }
+        };
+        checkOwnership();
+    }, [studentId]);
+
+    const isPersistent = useMemo(() => questionSet.id !== 'chat-session-set' && isOwner, [questionSet.id, isOwner]);
+    
     const questions = useMemo(() =>
         (questionSet.questions || []).filter(q => q && q.question && q.options?.length > 0)
     , [questionSet.questions]);

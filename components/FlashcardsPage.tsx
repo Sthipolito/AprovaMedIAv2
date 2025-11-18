@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getStructuredQuestionBank } from '../services/questionBankService';
 import * as academicService from '../services/academicService';
-import { Course, QuestionSet, Student, Module, Discipline } from '../types';
-import { BookOpenIcon, UserIcon, ChevronRightIcon } from './IconComponents';
+import * as crmService from '../services/crmService';
+import { Course, QuestionSet, Student, Module, Discipline, StudentFlashcardSession } from '../types';
+import { BookOpenIcon, UserIcon, ChevronRightIcon, LayersIcon } from './IconComponents';
 import FlashcardModal from './FlashcardModal';
 import SelectStudentModal from './SelectStudentModal';
 import ContentCarousel from './ContentCarousel';
@@ -29,6 +30,11 @@ const FlashcardsPage: React.FC = () => {
     // Editing and Details state
     const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
     const [viewingDetails, setViewingDetails] = useState<DetailsItem | null>(null);
+    
+    // New states for tabs and ongoing sessions
+    const [activeTab, setActiveTab] = useState<'explore' | 'sessions'>('explore');
+    const [inProgressSessions, setInProgressSessions] = useState<StudentFlashcardSession[]>([]);
+
 
     const loadData = async () => {
         setIsLoading(true);
@@ -44,6 +50,28 @@ const FlashcardsPage: React.FC = () => {
     useEffect(() => {
         loadData();
     }, []);
+    
+    // Fetch in-progress sessions when a student is selected
+    useEffect(() => {
+        const fetchSessions = async () => {
+            if (selectedStudentId) {
+                // setIsLoading(true); // Can cause a flicker, let's manage loading more gracefully if needed
+                const allSessions = await crmService.getStudentFlashcardSessions(selectedStudentId);
+                const ongoing = allSessions.filter(s => s.status === 'in_progress' && s.question_sets && s.current_question_index < (s.question_sets.questions?.length || 0));
+                setInProgressSessions(ongoing);
+                if (ongoing.length > 0) {
+                    setActiveTab('sessions');
+                } else {
+                    setActiveTab('explore');
+                }
+                // setIsLoading(false);
+            } else {
+                setInProgressSessions([]);
+                setActiveTab('explore');
+            }
+        };
+        fetchSessions();
+    }, [selectedStudentId]);
     
     // Reset child selections when a parent is deselected
     useEffect(() => { setSelectedModule(null); setSelectedDiscipline(null); }, [selectedCourse]);
@@ -91,14 +119,32 @@ const FlashcardsPage: React.FC = () => {
         if (selectedStudentId) {
             setSetForStudy(set);
         } else {
-            setSetForStudy(set);
+            setSetForStudy(set); // Store the set and open student selector
             setIsStudentModalOpen(true);
+        }
+    };
+    
+    const handleContinueStudy = (session: StudentFlashcardSession) => {
+        if (session.question_sets) {
+            setSetForStudy({
+                id: session.question_sets.id,
+                subjectName: session.question_sets.subject_name,
+                questions: session.question_sets.questions,
+                disciplineId: 'unknown',
+                createdAt: session.created_at,
+            });
         }
     };
     
     const handleStudentSelected = (studentId: string) => {
         setSelectedStudentId(studentId);
         setIsStudentModalOpen(false);
+    };
+    
+    const handleClearStudent = () => {
+        setSelectedStudentId(null);
+        setInProgressSessions([]);
+        setActiveTab('explore');
     };
 
     const Breadcrumbs = () => (
@@ -125,7 +171,7 @@ const FlashcardsPage: React.FC = () => {
         </nav>
     );
 
-    const renderContent = () => {
+    const renderExploreTab = () => {
         if (isLoading) {
             return (
                 <div className="flex justify-center items-center h-full">
@@ -160,6 +206,63 @@ const FlashcardsPage: React.FC = () => {
         return <ContentCarousel title="Cursos" items={structuredBank} type="course" onSelect={setSelectedCourse} onEdit={(item) => setEditingItem({ item, type: 'course' })} onDelete={(id) => handleDelete(id, 'course')} onDetails={(item) => handleViewDetails(item, 'course')} />;
     };
 
+    const renderSessionsTab = () => {
+        if (!selectedStudentId) {
+            return (
+                <div className="text-center py-20">
+                    <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold text-gray-700">Selecione um Aluno</h2>
+                    <p className="text-gray-500 mt-2 max-w-md mx-auto">
+                        Para ver as sessões de estudo em andamento, primeiro escolha um aluno no seletor acima.
+                    </p>
+                </div>
+            );
+        }
+
+        if (inProgressSessions.length === 0) {
+             return (
+                 <div className="text-center py-20">
+                    <LayersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold text-gray-700">Nenhuma Sessão em Andamento</h2>
+                    <p className="text-gray-500 mt-2 max-w-md mx-auto">
+                        Este aluno não tem sessões de estudo pendentes.
+                    </p>
+                </div>
+            );
+        }
+        
+        return (
+            <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Sessões em Andamento de {selectedStudent?.name}</h2>
+                {inProgressSessions.map(session => {
+                    if (!session.question_sets) return null;
+                    const totalQuestions = session.question_sets.questions.length;
+                    const progressPercent = totalQuestions > 0 ? ((session.current_question_index) / totalQuestions) * 100 : 0;
+
+                    return (
+                        <div key={session.id} className="bg-white p-4 rounded-lg border shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div className="flex-grow">
+                                <h3 className="font-bold text-gray-800">{session.question_sets.subject_name}</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Parou na questão {session.current_question_index + 1} de {totalQuestions}
+                                </p>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                    <div className="bg-primary h-2.5 rounded-full" style={{ width: `${progressPercent}%` }}></div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleContinueStudy(session)}
+                                className="px-4 py-2 bg-primary text-white font-semibold rounded-lg text-sm hover:bg-primary-dark transition-colors flex-shrink-0 w-full sm:w-auto"
+                            >
+                                Continuar de onde parei
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="h-full w-full flex flex-col bg-gray-50 overflow-y-auto">
@@ -177,7 +280,7 @@ const FlashcardsPage: React.FC = () => {
                                     {selectedStudent.name}
                                 </p>
                                 <button 
-                                    onClick={() => setSelectedStudentId(null)} 
+                                    onClick={handleClearStudent} 
                                     className="text-xs text-gray-500 hover:underline mt-1"
                                 >
                                     Trocar aluno
@@ -194,10 +297,32 @@ const FlashcardsPage: React.FC = () => {
                         )}
                     </div>
                 </header>
+                
+                <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                    <nav className="flex space-x-2">
+                        <button
+                            onClick={() => setActiveTab('sessions')}
+                            disabled={!selectedStudentId}
+                            className={`px-4 py-2 font-semibold text-sm rounded-lg ${activeTab === 'sessions' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                            Sessões em Andamento ({selectedStudentId ? inProgressSessions.length : 0})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('explore')}
+                            className={`px-4 py-2 font-semibold text-sm rounded-lg ${activeTab === 'explore' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-200'}`}
+                        >
+                            Explorar Conteúdo
+                        </button>
+                    </nav>
+                     {!selectedStudentId && activeTab === 'sessions' && (
+                        <p className="text-xs text-amber-700 mt-2">Selecione um aluno para ver suas sessões em andamento.</p>
+                    )}
+                </div>
+
 
                 <main className="flex-grow p-6">
-                    <Breadcrumbs />
-                    {renderContent()}
+                    {activeTab === 'explore' && <Breadcrumbs />}
+                    {activeTab === 'explore' ? renderExploreTab() : renderSessionsTab()}
                 </main>
             </div>
             

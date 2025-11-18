@@ -8,7 +8,7 @@ interface EditContentModalProps {
     item: any;
     type: ContentType;
     onClose: () => void;
-    onSave: (updates: { name: string; image_url: string }) => void;
+    onSave: (updates: { name: string; image_url: string; email?: string }) => void;
 }
 
 const typeLabels: Record<ContentType, string> = {
@@ -23,6 +23,7 @@ const typeLabels: Record<ContentType, string> = {
 const EditContentModal: React.FC<EditContentModalProps> = ({ item, type, onClose, onSave }) => {
     const initialName = type === 'question_set' ? item.subjectName : item.name;
     const [name, setName] = useState(initialName);
+    const [email, setEmail] = useState(item.email || '');
     const [imageUrl, setImageUrl] = useState(item.image_url || '');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -67,7 +68,7 @@ const EditContentModal: React.FC<EditContentModalProps> = ({ item, type, onClose
             }
         }
         
-        onSave({ name, image_url: finalImageUrl });
+        onSave({ name, image_url: finalImageUrl, email });
         setIsUploading(false);
     };
 
@@ -88,6 +89,13 @@ const EditContentModal: React.FC<EditContentModalProps> = ({ item, type, onClose
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                         <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary focus:outline-none" />
                     </div>
+
+                    {type === 'student' && (
+                        <div>
+                            <label htmlFor="student-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="student-email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary focus:outline-none" />
+                        </div>
+                    )}
 
                     {showImageField && (
                         <div>

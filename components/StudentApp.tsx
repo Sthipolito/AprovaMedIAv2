@@ -50,7 +50,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ studentProfile, session }) => {
     }
     
     return (
-        <div className="flex h-screen w-screen bg-gray-100">
+        <div className="flex h-full w-full bg-gray-100">
             <StudentSidebar
                 studentName={studentProfile.name}
                 currentView={currentView}

@@ -29,15 +29,11 @@ export const getStructuredQuestionBank = async (): Promise<Course[]> => {
 };
 
 export const saveQuestionSet = async (disciplineId: string, subjectName: string, questions: QuizQuestion[]): Promise<QuestionSet | null> => {
-    const { data, error } = await supabase
-        .from('question_sets')
-        .insert({
-            discipline_id: disciplineId,
-            subject_name: subjectName,
-            questions: questions,
-        })
-        .select()
-        .single();
+    const { data, error } = await supabase.rpc('save_question_set', {
+        p_discipline_id: disciplineId,
+        p_subject_name: subjectName,
+        p_questions: questions,
+    }).select().single();
 
     if (error) {
         console.error('Error saving question set:', error.message || error);

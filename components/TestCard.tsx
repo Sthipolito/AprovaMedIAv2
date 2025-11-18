@@ -3,7 +3,7 @@ import { TestWithAnalytics } from '../services/testService';
 import { CalendarIcon, ClockIcon, MoreVerticalIcon, EditIcon, TrashIcon } from './IconComponents';
 
 interface TestCardProps {
-    test: TestWithAnalytics;
+    test: TestWithAnalytics & { moduleName?: string; disciplineName?: string; };
     onResultsClick: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -52,7 +52,16 @@ const TestCard: React.FC<TestCardProps> = ({ test, onResultsClick, onEdit, onDel
         <div className={`bg-white border-b-4 ${status.color} rounded-lg shadow-sm flex flex-col transition-all hover:shadow-xl hover:-translate-y-1`}>
             <div className="p-4 flex-grow">
                 <div className="flex justify-between items-start">
-                    <h2 className="font-bold text-lg text-gray-800 pr-4 flex-1">{test.name}</h2>
+                    <div className="flex-1 min-w-0">
+                         {(test.moduleName || test.disciplineName) && (
+                            <div className="text-xs text-primary font-semibold mb-1 uppercase tracking-wider">
+                                {test.moduleName}
+                                {test.moduleName && test.disciplineName && <span className="mx-1 font-normal text-gray-400">/</span>}
+                                {test.disciplineName}
+                            </div>
+                        )}
+                        <h2 className="font-bold text-lg text-gray-800 pr-4 flex-1">{test.name}</h2>
+                    </div>
                     <div className="relative" ref={menuRef}>
                          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 rounded-full hover:bg-gray-200 text-gray-500 hover:text-gray-800">
                             <MoreVerticalIcon className="w-5 h-5" />

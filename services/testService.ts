@@ -37,16 +37,16 @@ export const createTest = async (
         console.error("Nome, tipo e questões são necessários.");
         return null;
     }
-    const testDataToInsert: any = {
-        name,
-        questions,
-        test_type: testType,
-        course_id: context?.courseId,
-        module_id: context?.moduleId,
-        discipline_id: context?.disciplineId,
-    };
 
-    const { data, error } = await supabase.from('tests').insert(testDataToInsert).select().single();
+    const { data, error } = await supabase.rpc('create_test', {
+        p_name: name,
+        p_questions: questions,
+        p_test_type: testType,
+        p_course_id: context?.courseId,
+        p_module_id: context?.moduleId,
+        p_discipline_id: context?.disciplineId
+    }).select().single();
+
     if (error) {
         console.error("Erro ao criar o teste:", error.message || error);
         return null;
@@ -61,32 +61,20 @@ export const createTestAssignment = async (
     classIds: string[],
     studentIds: string[]
 ): Promise<TestAssignment | null> => {
-    const { data: assignmentData, error: assignmentError } = await supabase
-        .from('test_assignments')
-        .insert({ test_id: testId, start_time: startTime, end_time: endTime })
-        .select()
-        .single();
+    const { data, error } = await supabase.rpc('create_test_assignment', {
+        p_test_id: testId,
+        p_start_time: startTime,
+        p_end_time: endTime,
+        p_class_ids: classIds,
+        p_student_ids: studentIds,
+    }).select().single();
     
-    if (assignmentError) {
-        console.error("Error creating test assignment:", assignmentError.message || assignmentError);
+    if (error) {
+        console.error("Error creating test assignment:", error.message || error);
         return null;
     }
 
-    const assignmentId = assignmentData.id;
-
-    if (classIds.length > 0) {
-        const classLinks = classIds.map(class_id => ({ assignment_id: assignmentId, class_id }));
-        const { error: classError } = await supabase.from('test_assignment_classes').insert(classLinks);
-        if (classError) console.error("Error linking assignment to classes:", classError.message || classError);
-    }
-    
-    if (studentIds.length > 0) {
-        const studentLinks = studentIds.map(student_id => ({ assignment_id: assignmentId, student_id }));
-        const { error: studentError } = await supabase.from('test_assignment_students').insert(studentLinks);
-        if (studentError) console.error("Error linking assignment to students:", studentError.message || studentError);
-    }
-
-    return assignmentData;
+    return data;
 };
 
 

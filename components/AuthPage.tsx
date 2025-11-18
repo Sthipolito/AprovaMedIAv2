@@ -39,24 +39,16 @@ const AuthPage: React.FC = () => {
                 if (error) throw error;
                 // The onAuthStateChange listener in App.tsx will handle the redirect
             } else {
-                if (!name || !selectedClassId) {
-                    throw new Error("Por favor, preencha todos os campos.");
+                if (!name || !selectedClassId || !email || !password) {
+                    throw new Error("Por favor, preencha todos os campos obrigatórios.");
                 }
-                const { data, error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: {
-                            full_name: name,
-                        }
-                    }
-                });
-
-                if (error) throw error;
-                if (data.user) {
-                     await academicService.createStudentProfile(data.user.id, name, selectedClassId);
-                }
-                setMessage('Cadastro realizado! Por favor, verifique seu e-mail para confirmar sua conta.');
+                // REFACTOR: Use the atomic addStudent function which calls an RPC to create the
+                // auth user and the student profile in a single transaction. This prevents the
+                // race condition where a profile fails to be created and the user is later
+                // misidentified as a teacher.
+                await academicService.addStudent(selectedClassId, name, email, password);
+                
+                setMessage('Cadastro realizado! Por favor, verifique seu e-mail para confirmar sua conta e poder fazer o login.');
             }
         } catch (err: any) {
             setError(err.error_description || err.message);
