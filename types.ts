@@ -34,6 +34,7 @@ export interface Discipline {
     name: string;
     image_url?: string;
     question_sets?: QuestionSet[];
+    official_summaries?: OfficialSummary[];
 }
 
 
@@ -191,7 +192,7 @@ export interface StudentAnalytics {
 }
 
 
-// --- Tipos para Sessões de Flashcard ---
+// --- Tipos para Sessões de Estudo (anteriormente Flashcard) ---
 export interface FlashcardSession {
     id: string;
     student_id: string;
@@ -269,4 +270,30 @@ export interface UserContextType {
     userRole: UserRole;
     setUserRole: (role: UserRole) => void;
     allStudents: Student[];
+}
+
+// --- NOVOS TIPOS ---
+
+// Tipos para Resumos Oficiais
+export interface OfficialSummary {
+    id: string;
+    created_at: string;
+    discipline_id: string;
+    title: string;
+    content: string;
+}
+
+// Tipos para os verdadeiros Flashcards (Pergunta/Resposta)
+export interface TrueFlashcard {
+    question: string;
+    answer: string;
+}
+
+export interface FlashcardSet {
+    id: string;
+    created_at: string;
+    discipline_id: string;
+    subject_name: string;
+    flashcards: TrueFlashcard[];
+    image_url?: string;
 }

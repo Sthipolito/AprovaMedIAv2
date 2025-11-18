@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { QuizQuestion } from '../types';
+import { QuizQuestion, TrueFlashcard } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -157,15 +157,72 @@ export const extractQuestionsFromPdf = async (pdfText: string): Promise<QuizQues
     }
 };
 
-
-export const generateQuiz = async (pdfText: string): Promise<QuizQuestion[] | null> => {
-    let jsonString = '';
+export const generateSummary = async (pdfText: string): Promise<string> => {
     try {
-        const prompt = `Analise o documento abaixo e gere um quiz de múltipla escolha com 5 questões. Cada questão deve ter 4 opções de resposta.
+        const prompt = `Crie um resumo conciso e informativo do seguinte documento. O resumo deve ser bem estruturado, usando cabeçalhos, listas e negrito para destacar os pontos-chave. O público-alvo são estudantes de medicina, então mantenha a terminologia técnica apropriada. O resumo deve ser útil para uma revisão rápida do material.
 
         CONTEÚDO DO DOCUMENTO:
         """
-        ${pdfText}
+        ${pdfText.substring(0, 40000)} 
+        """`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text;
+    } catch (error: any) {
+        console.error("Erro ao gerar resumo:", error.message || error);
+        return "Desculpe, encontrei um erro ao tentar gerar o resumo.";
+    }
+};
+
+export const generateSummaryFromQuestions = async (context: string): Promise<string> => {
+    try {
+        const prompt = `Com base no seguinte conjunto de perguntas, opções e explicações de um material de estudo, gere um resumo didático e bem estruturado. O resumo deve conectar os conceitos apresentados nas questões, explicando os tópicos de forma coesa e clara. Use formatação como negrito (**palavra**) e listas com asteriscos (* item) para organizar a informação.
+
+        MATERIAL DE ESTUDO (PERGUNTAS E RESPOSTAS):
+        """
+        ${context}
+        """
+
+        RESUMO GERADO:`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text;
+    } catch (error: any) {
+        console.error("Erro ao gerar resumo a partir de questões:", error.message || error);
+        return "Desculpe, encontrei um erro ao tentar gerar o resumo a partir das questões selecionadas.";
+    }
+};
+
+
+const flashcardSchema = {
+    type: Type.OBJECT,
+    properties: {
+        question: { type: Type.STRING, description: "A pergunta concisa do flashcard." },
+        answer: { type: Type.STRING, description: "A resposta direta e informativa para a pergunta." }
+    },
+    required: ['question', 'answer']
+};
+
+
+export const extractTrueFlashcards = async (pdfText: string): Promise<TrueFlashcard[]> => {
+    try {
+        const prompt = `Analise o texto a seguir, que é material de estudo de medicina. Extraia os conceitos, fatos e definições mais importantes e transforme-os em flashcards no formato de pergunta e resposta. As perguntas devem ser claras e as respostas devem ser concisas e diretas. Crie pelo menos 10 flashcards, se o material permitir.
+
+        Exemplos de bons flashcards:
+        - Pergunta: "Qual é a tríade de Beck?" Resposta: "Hipotensão, abafamento de bulhas e estase jugular."
+        - Pergunta: "Qual é o agente etiológico mais comum da pneumonia adquirida na comunidade (PAC)?" Resposta: "Streptococcus pneumoniae."
+
+        CONTEÚDO DO DOCUMENTO:
+        """
+        ${pdfText.substring(0, 30000)}
         """`;
 
         const response = await ai.models.generateContent({
@@ -175,28 +232,78 @@ export const generateQuiz = async (pdfText: string): Promise<QuizQuestion[] | nu
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,
-                    items: quizQuestionSchema,
+                    items: flashcardSchema,
                 },
             },
         });
-
-        jsonString = response.text;
-        if (!jsonString) {
-             console.error("Erro ao gerar quiz: A IA retornou uma resposta vazia.");
-             return null;
-        }
         
-        const parsed = JSON.parse(jsonString);
-        return parsed as QuizQuestion[];
+        const jsonString = response.text;
+        if (!jsonString) return [];
+        
+        return JSON.parse(jsonString) as TrueFlashcard[];
 
     } catch (error: any) {
-        console.error("Erro ao gerar quiz:", error.message || error);
-        if(jsonString) {
-            console.error("Falha ao analisar o seguinte texto da IA:", jsonString);
-        }
-        return null;
+        console.error("Erro ao extrair flashcards:", error.message || error);
+        return [];
     }
 };
+
+const answerKeyUpdateSchema = {
+    type: Type.OBJECT,
+    properties: {
+        questionIdentifier: {
+            type: Type.STRING,
+            description: "O número ou identificador da questão, exatamente como aparece no gabarito (ex: '22159.', '1')."
+        },
+        correctOptionLetter: {
+            type: Type.STRING,
+            description: "A letra da opção correta (ex: 'A', 'B', 'C', 'D', 'E')."
+        }
+    },
+    required: ['questionIdentifier', 'correctOptionLetter']
+};
+
+export const processAnswerKey = async (answerKeyText: string): Promise<{ identifier: string; option: string }[] | null> => {
+     try {
+        const prompt = `Analise o texto do gabarito fornecido. Para cada questão, extraia o número/identificador da questão e a letra da alternativa correta. Ignore qualquer comentário ou explicação.
+
+        Exemplo de Gabarito:
+        "GABARITO: 1. A, 2. C, 3. D ... 22159. E"
+
+        Retorne os dados no formato JSON especificado.
+
+        TEXTO DO GABARITO:
+        """
+        ${answerKeyText}
+        """`;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: answerKeyUpdateSchema,
+                },
+            },
+        });
+        
+        const jsonString = response.text;
+        if (!jsonString) return null;
+
+        const parsed = JSON.parse(jsonString);
+        return parsed.map((item: any) => ({
+            identifier: item.questionIdentifier.replace(/\.$/, '').trim(), // Remove trailing dots and trim
+            option: item.correctOptionLetter.trim().toUpperCase()
+        }));
+
+     } catch (error) {
+        console.error("Erro ao processar gabarito:", error);
+        return null;
+     }
+};
+
 
 export const getAIHint = async (question: string, options: string[]): Promise<string> => {
     try {

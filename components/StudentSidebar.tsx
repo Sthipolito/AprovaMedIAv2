@@ -1,6 +1,6 @@
 import React from 'react';
 import { StudentView } from './StudentApp';
-import { HomeIcon, LayersIcon, ClipboardListIcon, UserIcon } from './IconComponents';
+import { HomeIcon, LayersIcon, ClipboardListIcon, UserIcon, BookOpenIcon, FileTextIcon } from './IconComponents';
 import { supabase } from '../services/supabaseClient';
 
 interface StudentSidebarProps {
@@ -14,8 +14,10 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ studentName, currentVie
     
     const navItems = [
         { view: 'dashboard', label: 'Meu Dashboard', icon: HomeIcon },
-        { view: 'flashcards', label: 'Meus Flashcards', icon: LayersIcon },
+        { view: 'myQuestions', label: 'Minhas Questões', icon: BookOpenIcon },
         { view: 'tests', label: 'Meus Testes', icon: ClipboardListIcon },
+        { view: 'summaries', label: 'Resumos Oficiais', icon: FileTextIcon },
+        { view: 'trueFlashcards', label: 'Flashcards', icon: LayersIcon },
         { view: 'profile', label: 'Meu Perfil', icon: UserIcon },
     ];
     

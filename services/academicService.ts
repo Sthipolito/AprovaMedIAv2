@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Course, Module, Discipline, Class, Student, QuestionSet } from '../types';
+import { Course, Module, Discipline, Class, Student, QuestionSet, OfficialSummary, TrueFlashcard, FlashcardSet } from '../types';
 import * as questionBankService from './questionBankService';
 import * as testService from './testService';
 
@@ -444,6 +444,86 @@ export const getStudentCourseContent = async (studentId: string): Promise<Course
     const { data, error } = await supabase.rpc('get_student_course_content', { p_student_id: studentId });
     if (error) {
         console.error("Error fetching student course content:", error.message || error);
+        return null;
+    }
+    return data;
+};
+
+// --- New Functions for Summaries & True Flashcards ---
+
+export const saveSummary = async (disciplineId: string, title: string, content: string): Promise<OfficialSummary | null> => {
+    const { data, error } = await supabase.rpc('save_summary', {
+        p_discipline_id: disciplineId,
+        p_title: title,
+        p_content: content,
+    }).select().single();
+
+    if (error) {
+        console.error('Error saving summary:', error.message || error);
+        return null;
+    }
+    return data;
+};
+
+export const getSummariesStructure = async (): Promise<Course[]> => {
+    // This RPC is expected to return the full academic tree including summaries for teachers.
+    const { data, error } = await supabase.rpc('get_structured_academic_content');
+    if (error) {
+        console.error("Error fetching summaries structure:", error.message || error);
+        return [];
+    }
+    return data || [];
+};
+
+
+export const getStudentSummariesStructure = async (studentId: string): Promise<Course | null> => {
+    // This RPC is expected to return the academic tree relevant to a single student.
+    const { data, error } = await supabase.rpc('get_student_course_content', { p_student_id: studentId });
+     if (error) {
+        console.error("Error fetching student summaries structure:", error.message || error);
+        return null;
+    }
+    return data;
+};
+
+
+export const updateSummary = async (summaryId: string, updates: { title: string; content: string }): Promise<OfficialSummary | null> => {
+    const { data, error } = await supabase
+        .from('official_summaries')
+        .update({ title: updates.title, content: updates.content })
+        .eq('id', summaryId)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error('Error updating summary:', error.message || error);
+        throw error;
+    }
+    return data;
+};
+
+export const deleteSummary = async (summaryId: string): Promise<void> => {
+    const { error } = await supabase
+        .from('official_summaries')
+        .delete()
+        .eq('id', summaryId);
+
+    if (error) {
+        console.error('Error deleting summary:', error.message || error);
+        throw error;
+    }
+};
+
+
+export const saveFlashcardSet = async (disciplineId: string, subjectName: string, flashcards: TrueFlashcard[]): Promise<FlashcardSet | null> => {
+    const { data, error } = await supabase.rpc('save_flashcard_set', {
+        p_discipline_id: disciplineId,
+        p_subject_name: subjectName,
+        p_flashcards: flashcards,
+    }).select().single();
+
+    if (error) {
+        console.error('Error saving flashcard set:', error.message || error);
         return null;
     }
     return data;

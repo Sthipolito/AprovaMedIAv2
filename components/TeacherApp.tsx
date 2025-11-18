@@ -6,16 +6,17 @@ import Sidebar from './Sidebar';
 import AcademicManagementPage from './AcademicManagementPage';
 import TestsPage from './TestsPage';
 import CrmPage from './CrmPage';
-import FlashcardsPage from './FlashcardsPage';
-import QuestionBankManagementPage from './QuestionBankManagementPage';
+import StudyBankPage from './StudyBankPage';
 import DashboardPage from './DashboardPage';
+import OfficialSummariesPage from './OfficialSummariesPage';
+import TrueFlashcardsPage from './TrueFlashcardsPage';
 import { usePdfParser } from '../hooks/usePdfParser';
 import { UserProvider } from '../contexts/UserContext';
 import FloatingChatButton from './FloatingChatButton';
 import TutorChatModal from './TutorChatModal';
 
 
-export type View = 'landing' | 'chat' | 'academicManagement' | 'questionBankManagement' | 'tests' | 'crm' | 'flashcards' | 'dashboard';
+export type View = 'dashboard' | 'landing' | 'chat' | 'academicManagement' | 'studyBank' | 'tests' | 'crm' | 'officialSummaries' | 'trueFlashcards';
 
 const TeacherApp: React.FC = () => {
     const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -63,14 +64,16 @@ const TeacherApp: React.FC = () => {
                 return null;
             case 'academicManagement':
                 return <AcademicManagementPage />;
-            case 'questionBankManagement':
-                return <QuestionBankManagementPage />;
+            case 'studyBank':
+                return <StudyBankPage />;
             case 'tests':
                 return <TestsPage />;
             case 'crm':
                 return <CrmPage />;
-            case 'flashcards':
-                return <FlashcardsPage />;
+            case 'officialSummaries':
+                return <OfficialSummariesPage />;
+            case 'trueFlashcards':
+                return <TrueFlashcardsPage />;
             case 'landing':
             default:
                 return <LandingPage onPdfUpload={handlePdfUpload} isLoading={isLoading} error={error} />;

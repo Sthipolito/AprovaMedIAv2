@@ -5,16 +5,18 @@ import { supabase } from '../services/supabaseClient';
 
 import StudentSidebar from './StudentSidebar';
 import StudentDashboardPage from './student/StudentDashboardPage';
-import StudentFlashcardsPage from './student/StudentFlashcardsPage';
+import MyQuestionsPage from './student/MyQuestionsPage';
 import StudentTestsPage from './student/StudentTestsPage';
 import StudentProfilePage from './student/StudentProfilePage';
+import StudentSummariesPage from './student/OfficialSummariesPage';
+import StudentTrueFlashcardsPage from './student/TrueFlashcardsPage';
 
 interface StudentAppProps {
     session: Session;
     studentProfile: Student;
 }
 
-export type StudentView = 'dashboard' | 'flashcards' | 'tests' | 'profile';
+export type StudentView = 'dashboard' | 'myQuestions' | 'tests' | 'profile' | 'summaries' | 'trueFlashcards';
 
 const StudentApp: React.FC<StudentAppProps> = ({ studentProfile, session }) => {
     const [currentView, setCurrentView] = useState<StudentView>('dashboard');
@@ -26,10 +28,14 @@ const StudentApp: React.FC<StudentAppProps> = ({ studentProfile, session }) => {
     const renderView = () => {
         if (!studentProfile) return null; // or a loading/error state
         switch (currentView) {
-            case 'flashcards':
-                return <StudentFlashcardsPage student={studentProfile} />;
+            case 'myQuestions':
+                return <MyQuestionsPage student={studentProfile} />;
             case 'tests':
                 return <StudentTestsPage student={studentProfile} />;
+            case 'summaries':
+                return <StudentSummariesPage student={studentProfile} />;
+            case 'trueFlashcards':
+                return <StudentTrueFlashcardsPage student={studentProfile} />;
             case 'profile':
                 return <StudentProfilePage student={studentProfile} />;
             case 'dashboard':

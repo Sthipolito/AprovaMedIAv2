@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-// FIX: The 'View' type is exported from TeacherApp.tsx, not App.tsx.
 import { View } from './TeacherApp';
-import { PlusCircleIcon, GraduationCapIcon, UsersIcon, ClipboardListIcon, LayersIcon, BookOpenIcon, HomeIcon, UserCheckIcon } from './IconComponents';
+import { PlusCircleIcon, GraduationCapIcon, UsersIcon, ClipboardListIcon, LayersIcon, BookOpenIcon, HomeIcon, FileTextIcon, UserCheckIcon } from './IconComponents';
 import { useUser } from '../contexts/UserContext';
 import { UserRole } from '../types';
 
@@ -20,10 +19,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
         { view: 'dashboard', label: 'Dashboard', icon: HomeIcon },
         { view: 'landing', label: 'Nova Sessão de Estudo', icon: PlusCircleIcon },
         { view: 'academicManagement', label: 'Gestão Acadêmica', icon: GraduationCapIcon },
-        { view: 'questionBankManagement', label: 'Banco de Questões', icon: BookOpenIcon },
+        { view: 'studyBank', label: 'Banco de Estudos', icon: BookOpenIcon },
         { view: 'tests', label: 'Testes na Íntegra', icon: ClipboardListIcon },
         { view: 'crm', label: 'CRM de Alunos', icon: UsersIcon },
-        { view: 'flashcards', label: 'Flashcards', icon: LayersIcon },
+        { view: 'officialSummaries', label: 'Resumos Oficiais', icon: FileTextIcon },
+        { view: 'trueFlashcards', label: 'Flashcards', icon: LayersIcon },
     ];
     
     const logoUrl = "https://pub-872633efa2d545638be12ea86363c2ca.r2.dev/WhatsApp%20Image%202025-11-09%20at%2013.47.15%20(1).png";

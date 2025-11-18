@@ -162,7 +162,8 @@ export const getContentAnalytics = async (
                 .limit(10);
             
             if (activityError) throw activityError;
-            result.activityLog = (activityLog || []) as any;
+            // FIX: Cast to a more specific type instead of `any` to improve type safety.
+            result.activityLog = (activityLog || []) as (ContentAnalyticsData['activityLog']);
         }
 
     } catch (error: any) {

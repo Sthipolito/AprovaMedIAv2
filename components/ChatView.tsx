@@ -9,6 +9,9 @@ import PdfViewer from './PdfViewer';
 import QuestionBankView from './QuestionBankView';
 import FlashcardModal from './FlashcardModal';
 import SaveQuestionsModal from './SaveQuestionsModal';
+import AnswerKeyProcessorTab from './AnswerKeyProcessorTab';
+import SummaryGeneratorTab from './SummaryGeneratorTab';
+import FlashcardGeneratorTab from './FlashcardGeneratorTab';
 
 interface ChatViewProps {
     pdfFile: File;
@@ -29,13 +32,13 @@ const ADMIN_TEST_USER_ID = "00000000-0000-0000-0000-000000000000"; // Placeholde
 
 const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStartNewSession }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([
-        { role: 'system', content: `Olá! Analisei "${fileName}". Pergunte-me qualquer coisa ou extraia questões de estudo.` }
+        { role: 'system', content: `Olá! Analisei "${fileName}". Pergunte-me qualquer coisa ou use as ferramentas de IA.` }
     ]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [questionBank, setQuestionBank] = useState<QuizQuestion[] | null>(null);
     const [isExtracting, setIsExtracting] = useState(false);
-    const [activeTab, setActiveTab] = useState<'chat' | 'questions'>('chat');
+    const [activeTab, setActiveTab] = useState<'chat' | 'questions' | 'answers' | 'summary' | 'flashcards'>('chat');
     const [showFlashcards, setShowFlashcards] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [selectedQuestionIndices, setSelectedQuestionIndices] = useState<Set<number>>(new Set());
@@ -53,7 +56,6 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
         }
     }, [messages, activeTab]);
     
-    // Clear selection when new questions are extracted
     useEffect(() => {
         setSelectedQuestionIndices(new Set());
     }, [questionBank]);
@@ -108,7 +110,6 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
                 let alertMessage = `Sucesso! ${selectedQuestions.length} questões salvas em "${details.subjectName}".`;
 
                 if (details.createTest && details.testName) {
-                    // FIX: The createTest function requires the test type ('fixed' or 'scheduled') and an optional context object.
                     const newTest = await testService.createTest(details.testName, selectedQuestions, 'fixed', { disciplineId: details.disciplineId });
                     if (newTest) {
                         alertMessage += `\n\nTeste "${newTest.name}" também foi criado com sucesso!`;
@@ -123,6 +124,16 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
         }
         setShowSaveModal(false);
     };
+    
+    const TabButton: React.FC<{ tabName: typeof activeTab; children: React.ReactNode }> = ({ tabName, children }) => (
+         <button
+            onClick={() => setActiveTab(tabName)}
+            className={`flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === tabName ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+        >
+            {children}
+        </button>
+    );
+
 
     return (
         <>
@@ -138,18 +149,11 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
                     <div className="w-full md:w-1/2 flex flex-col bg-white h-full">
                         <div className="border-b border-gray-200">
                             <nav className="flex -mb-px">
-                                <button
-                                    onClick={() => setActiveTab('chat')}
-                                    className={`flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                >
-                                    Chat
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('questions')}
-                                    className={`flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'questions' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                >
-                                    Questões de Estudo
-                                </button>
+                                <TabButton tabName="chat">Chat</TabButton>
+                                <TabButton tabName="questions">Questões de Estudo</TabButton>
+                                <TabButton tabName="answers">Gabarito/Respostas</TabButton>
+                                <TabButton tabName="summary">Criar Resumos</TabButton>
+                                <TabButton tabName="flashcards">Criar Flashcards</TabButton>
                             </nav>
                         </div>
 
@@ -221,6 +225,9 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
                                 onSelectAll={handleSelectAll}
                             />
                         )}
+                        {activeTab === 'answers' && <AnswerKeyProcessorTab questions={questionBank} onQuestionsUpdate={setQuestionBank} />}
+                        {activeTab === 'summary' && <SummaryGeneratorTab pdfText={pdfText} />}
+                        {activeTab === 'flashcards' && <FlashcardGeneratorTab pdfText={pdfText} />}
                     </div>
                 </main>
             </div>
