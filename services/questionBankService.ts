@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import { Course, Module, Discipline, QuestionSet, QuestionBank, QuizQuestion } from '../types';
-import * as academicService from './academicService';
 
 export const getQuestionBank = async (): Promise<QuestionBank> => {
     const { data, error } = await supabase.rpc('get_question_bank_list');

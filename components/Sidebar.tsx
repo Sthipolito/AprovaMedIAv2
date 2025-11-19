@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View } from './TeacherApp';
-import { PlusCircleIcon, GraduationCapIcon, UsersIcon, ClipboardListIcon, LayersIcon, BookOpenIcon, HomeIcon, FileTextIcon, UserCheckIcon } from './IconComponents';
+import { PlusCircleIcon, GraduationCapIcon, UsersIcon, ClipboardListIcon, LayersIcon, BookOpenIcon, HomeIcon, FileTextIcon, UserCheckIcon, MoreVerticalIcon, ChevronRightIcon } from './IconComponents';
 import { useUser } from '../contexts/UserContext';
 import { UserRole } from '../types';
 
@@ -12,8 +12,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout }) => {
     const { userRole, setUserRole, allStudents } = useUser();
-    const [isProfileSelectorOpen, setIsProfileSelectorOpen] = useState(false);
-    const selectorRef = useRef<HTMLDivElement>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
     
     const navItems = [
         { view: 'dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -30,8 +30,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
-                setIsProfileSelectorOpen(false);
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -40,87 +40,108 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
 
     const handleRoleChange = (role: UserRole) => {
         setUserRole(role);
-        setIsProfileSelectorOpen(false);
+        // Keep menu open or close it? Closing feels more natural after selection.
+        // setIsMenuOpen(false); 
     };
 
-    const currentRoleLabel = userRole.role === 'teacher' ? 'Professor' : userRole.studentName;
+    const currentRoleLabel = userRole.role === 'teacher' ? 'Professor (Admin)' : userRole.studentName;
+    const initials = userRole.role === 'teacher' ? 'P' : userRole.studentName.charAt(0);
 
     return (
-        <aside className="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
-            <div className="p-2 border-b border-gray-700 flex items-center justify-center">
-                 <img src={logoUrl} alt="AprovaMed IA Logo" className="w-full h-auto" />
+        <aside className="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0 h-full border-r border-gray-800">
+            {/* Header: Logo Only */}
+            <div className="py-4 px-6 flex items-center justify-center border-b border-gray-800">
+                 <img src={logoUrl} alt="AprovaMed IA" className="w-full h-auto max-w-[160px] opacity-90 hover:opacity-100 transition-opacity" />
             </div>
-            <nav className="flex-grow p-4">
-                <ul className="space-y-2">
-                    {navItems.map(item => {
-                        const Icon = item.icon;
-                        const isActive = currentView === item.view || (item.view === 'landing' && currentView === 'chat');
-                        
-                        return (
-                            <li key={item.view}>
-                                <button
-                                    onClick={() => setCurrentView(item.view as View)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left font-semibold transition-colors ${
-                                        isActive ? 'bg-primary text-white' : 'hover:bg-gray-700'
-                                    }`}
-                                >
-                                    <Icon className="w-6 h-6" />
-                                    <span>{item.label}</span>
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
+
+            {/* Navigation */}
+            <nav className="flex-grow p-3 overflow-y-auto custom-scrollbar space-y-1">
+                {navItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.view || (item.view === 'landing' && currentView === 'chat');
+                    
+                    return (
+                        <button
+                            key={item.view}
+                            onClick={() => setCurrentView(item.view as View)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left font-medium text-sm transition-all duration-200 group ${
+                                isActive 
+                                ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                                : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
+                            }`}
+                        >
+                            <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                            <span>{item.label}</span>
+                        </button>
+                    );
+                })}
             </nav>
 
-            <div className="p-4 border-t border-gray-700 space-y-4">
-                <div ref={selectorRef} className="relative">
-                    {isProfileSelectorOpen && (
-                        <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            <ul className="space-y-1">
-                                <li>
-                                    <button
-                                        onClick={() => handleRoleChange({ role: 'teacher' })}
-                                        className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-600"
-                                    >
-                                        Professor
-                                    </button>
-                                </li>
-                                {allStudents.map(student => (
-                                    <li key={student.id}>
-                                        <button
-                                            onClick={() => handleRoleChange({ role: 'student', studentId: student.id, studentName: student.name })}
-                                            className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-600"
-                                        >
-                                            {student.name}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => setIsProfileSelectorOpen(!isProfileSelectorOpen)}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-900/50 hover:bg-gray-700 transition-colors"
-                    >
-                        <UserCheckIcon className="w-5 h-5 text-primary-light" />
-                        <div>
-                            <p className="text-xs text-gray-400">Visualizando como:</p>
-                            <p className="font-semibold text-white truncate">{currentRoleLabel}</p>
-                        </div>
-                    </button>
-                </div>
+            {/* Footer: User Profile Menu (Pop-up) */}
+            <div className="p-3 border-t border-gray-800 mt-auto relative" ref={menuRef}>
                 
-                <button
-                    onClick={onLogout}
-                    className="w-full px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"
-                >
-                    Sair
-                </button>
+                {/* Popover Menu */}
+                {isMenuOpen && (
+                    <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animation-fade-in-up">
+                        <div className="p-3 border-b border-gray-100 bg-gray-50">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Visualizando como</p>
+                            <p className="text-sm font-semibold text-gray-800 truncate">{currentRoleLabel}</p>
+                        </div>
+                        
+                        <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                            <button
+                                onClick={() => handleRoleChange({ role: 'teacher' })}
+                                className={`w-full text-left px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${userRole.role === 'teacher' ? 'bg-primary/10 text-primary font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                            >
+                                <UserCheckIcon className="w-4 h-4"/> Professor (Admin)
+                            </button>
+                            
+                            {allStudents.length > 0 && (
+                                <div className="mt-2 mb-1 px-2">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Alunos</p>
+                                </div>
+                            )}
+                            
+                            {allStudents.map(student => (
+                                <button
+                                    key={student.id}
+                                    onClick={() => handleRoleChange({ role: 'student', studentId: student.id, studentName: student.name })}
+                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg truncate transition-colors ${
+                                        userRole.role === 'student' && userRole.studentId === student.id 
+                                        ? 'bg-primary/10 text-primary font-medium' 
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    {student.name}
+                                </button>
+                            ))}
+                        </div>
 
-                <div className="pt-2 text-center text-xs text-gray-400">
-                    <p>&copy; {new Date().getFullYear()} AprovaMed IA</p>
-                </div>
+                        <div className="p-2 border-t border-gray-100 bg-gray-50">
+                            <button
+                                onClick={onLogout}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                                Sair da Plataforma
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* User Trigger Button */}
+                <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all duration-200 group ${isMenuOpen ? 'bg-gray-800' : 'hover:bg-gray-800'}`}
+                >
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-gray-800 group-hover:ring-gray-700 transition-all">
+                        {initials}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{currentRoleLabel}</p>
+                        <p className="text-xs text-gray-400 truncate">Clique para opções</p>
+                    </div>
+                    <MoreVerticalIcon className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                </button>
             </div>
         </aside>
     );

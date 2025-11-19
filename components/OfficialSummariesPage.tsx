@@ -363,16 +363,16 @@ const OfficialSummariesPage: React.FC = () => {
 
     const handleCreateSummary = async (details: { disciplineId: string; title: string; content: string }) => {
         try {
-            const newSummary = await academicService.saveSummary(details.disciplineId, details.title, details.content);
-            if (newSummary) {
+            const success = await academicService.saveSummary(details.disciplineId, details.title, details.content);
+            if (success) {
                 alert('Resumo criado com sucesso!');
                 setIsCreateModalOpen(false);
                 await loadData();
             } else {
-                throw new Error("O resumo não foi retornado após salvar.");
+                throw new Error("A operação de salvar o resumo falhou no servidor.");
             }
         } catch (error) {
-            alert('Falha ao criar o resumo.');
+            alert(`Falha ao criar o resumo: ${(error as Error).message}`);
             console.error(error);
         }
     };

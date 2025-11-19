@@ -130,9 +130,9 @@ const FlashcardGeneratorTab: React.FC<FlashcardGeneratorTabProps> = ({ pdfText }
 
     const handleSave = async (details: { disciplineId: string; subjectName: string; }) => {
         if (!flashcards) return;
-        const savedSet = await academicService.saveFlashcardSet(details.disciplineId, details.subjectName, flashcards);
-        if (savedSet) {
-            alert(`Conjunto de flashcards "${savedSet.subject_name}" salvo com sucesso!`);
+        const success = await academicService.saveFlashcardSet(details.disciplineId, details.subjectName, flashcards);
+        if (success) {
+            alert(`Conjunto de flashcards "${details.subjectName}" salvo com sucesso!`);
         } else {
             alert("Falha ao salvar o conjunto de flashcards.");
         }

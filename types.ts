@@ -1,3 +1,4 @@
+
 export interface ChatMessage {
     role: 'user' | 'model' | 'system';
     content: string;
@@ -67,6 +68,10 @@ export interface QuestionSet {
     questions: QuizQuestion[];
     image_url?: string;
     createdAt: string;
+    // New metadata fields for rich UI
+    relevance?: 'Alta' | 'Média' | 'Baixa';
+    incidence?: number; // percentage e.g. 1.96
+    difficulty?: 'Fácil' | 'Média' | 'Difícil';
 }
 
 export interface QuestionBank {
@@ -296,4 +301,51 @@ export interface FlashcardSet {
     subject_name: string;
     flashcards: TrueFlashcard[];
     image_url?: string;
+}
+
+// Tipos para personalização do aluno
+export interface StudentGoal {
+    id?: string;
+    student_id: string;
+    target_institution: string;
+    target_score: number;
+    daily_questions_goal: number;
+    daily_study_minutes_goal: number;
+    study_days: string[]; // e.g. ['Mon', 'Wed', 'Fri']
+    exam_date?: string;
+    created_at?: string;
+    preferences?: {
+        strengths: string[]; // list of discipline IDs or Names
+        weaknesses: string[];
+    };
+}
+
+export interface TrailStep {
+    id: string;
+    type: 'summary' | 'questions' | 'test' | 'flashcards';
+    title: string;
+    description: string;
+    contentId: string; // ID of the summary, question set, or test
+    status: 'pending' | 'completed';
+    estimatedTime: number; // minutes
+}
+
+export interface LearningTrail {
+    id: string;
+    generatedAt: string;
+    studentId: string;
+    steps: TrailStep[];
+}
+
+// --- Tipos para Biblioteca Pessoal ---
+export interface LibraryItem {
+    library_id: string;
+    added_at: string;
+    question_set_id: string;
+    subject_name: string;
+    image_url?: string;
+    relevance: 'Alta' | 'Média' | 'Baixa';
+    difficulty: 'Fácil' | 'Média' | 'Difícil';
+    incidence: number;
+    questions: QuizQuestion[];
 }

@@ -28,14 +28,21 @@ const App: React.FC = () => {
                     setStudentProfile(profile);
                     setUserRole('student');
                 } else {
-                    // NOTE: If no profile is found, we previously defaulted to 'teacher'.
-                    // However, this caused issues where users with failed profile creations entered as teachers.
-                    // In a real production app, you would check a 'teachers' table or an 'is_admin' claim.
-                    // For now, we keep the default but ensure we don't trap 'ghost' students.
+                    // SECURITY FIX: If no student profile is found, check if it's the admin.
+                    // This prevents broken student accounts (failed profile creation) from accessing the teacher panel.
+                    const adminEmail = 'aprovamedia@gmail.com'; 
                     
-                    // TODO: Add a check for specific teacher emails or a teachers table in Supabase.
-                    setStudentProfile(null);
-                    setUserRole('teacher'); 
+                    if (session.user.email === adminEmail) {
+                        setStudentProfile(null);
+                        setUserRole('teacher'); 
+                    } else {
+                         // If it's not the known admin and has no student profile, it's likely a broken account.
+                         console.warn("Access denied: User has no student profile and is not admin.");
+                         await supabase.auth.signOut();
+                         alert("Erro de Acesso: Seu perfil de aluno não foi encontrado. Por favor, entre em contato com o suporte.");
+                         setStudentProfile(null);
+                         setUserRole(null);
+                    }
                 }
             } else {
                 // No session, so no user role.

@@ -1,8 +1,5 @@
 import { supabase } from './supabaseClient';
 import { Course, Module, Discipline, Class, Student, QuestionSet, OfficialSummary, TrueFlashcard, FlashcardSet } from '../types';
-import * as questionBankService from './questionBankService';
-import * as testService from './testService';
-
 
 // --- Auth Related ---
 
@@ -82,51 +79,14 @@ export const updateCourse = async (id: string, updates: { name?: string; image_u
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {
-    // 1. Find and delete all associated modules (which will cascade to their contents)
-    const { data: modules, error: modulesError } = await supabase
-        .from('modules')
-        .select('id')
-        .eq('course_id', id);
-
-    if (modulesError) {
-        console.error('Error finding modules for course:', modulesError.message);
-        throw modulesError;
-    }
-    if (modules) {
-        await Promise.all(modules.map(m => deleteModule(m.id)));
-    }
-
-    // 2. Find and delete all associated classes (which will cascade to their students)
-    const { data: classes, error: classesError } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('course_id', id);
-
-    if (classesError) {
-        console.error('Error finding classes for course:', classesError.message);
-        throw classesError;
-    }
-    if (classes) {
-        await Promise.all(classes.map(c => deleteClass(c.id)));
-    }
-
-    // 3. Find and delete all associated tests (if any are linked directly to course)
-     const { data: tests, error: testsError } = await supabase
-        .from('tests')
-        .select('id')
-        .eq('course_id', id);
-    
-    if (testsError) {
-        console.error('Error finding tests for course:', testsError.message);
-        throw testsError;
-    }
-    if (tests) {
-        await Promise.all(tests.map(t => testService.deleteTest(t.id)));
-    }
-
-    // 4. Finally, delete the course itself
+    // CRITICAL FIX: The previous cascading logic created a circular dependency.
+    // This has been simplified to only delete the primary item. 
+    // The database should ideally handle cascades with `ON DELETE CASCADE`.
     const { error } = await supabase.from('courses').delete().eq('id', id);
-    if (error) { console.error('Error deleting course:', error.message || error); throw error; }
+    if (error) { 
+        console.error('Error deleting course:', error.message || error); 
+        throw error; 
+    }
 };
 
 export const getModules = async (courseId?: string): Promise<Module[]> => {
@@ -159,37 +119,12 @@ export const updateModule = async (id: string, updates: { name?: string; image_u
 };
 
 export const deleteModule = async (id: string): Promise<void> => {
-    // 1. Find and delete all associated disciplines (which will cascade to their contents)
-    const { data: disciplines, error: disciplinesError } = await supabase
-        .from('disciplines')
-        .select('id')
-        .eq('module_id', id);
-    
-    if (disciplinesError) {
-        console.error('Error finding disciplines for module:', disciplinesError.message);
-        throw disciplinesError;
-    }
-    if (disciplines) {
-        await Promise.all(disciplines.map(d => deleteDiscipline(d.id)));
-    }
-    
-    // 2. Find and delete all associated tests (if any are linked directly to module)
-    const { data: tests, error: testsError } = await supabase
-        .from('tests')
-        .select('id')
-        .eq('module_id', id);
-    
-    if (testsError) {
-        console.error('Error finding tests for module:', testsError.message);
-        throw testsError;
-    }
-    if (tests) {
-        await Promise.all(tests.map(t => testService.deleteTest(t.id)));
-    }
-
-    // 3. Delete the module itself
+    // CRITICAL FIX: The previous cascading logic created a circular dependency.
     const { error } = await supabase.from('modules').delete().eq('id', id);
-    if (error) { console.error('Error deleting module:', error.message || error); throw error; }
+    if (error) { 
+        console.error('Error deleting module:', error.message || error); 
+        throw error; 
+    }
 };
 
 export const getDisciplines = async (moduleId?: string): Promise<Discipline[]> => {
@@ -222,37 +157,12 @@ export const updateDiscipline = async (id: string, updates: { name?: string; ima
 };
 
 export const deleteDiscipline = async (id: string): Promise<void> => {
-    // 1. Find and delete all associated question sets
-    const { data: questionSets, error: qsError } = await supabase
-        .from('question_sets')
-        .select('id')
-        .eq('discipline_id', id);
-
-    if (qsError) {
-        console.error('Error finding question sets for discipline:', qsError.message);
-        throw qsError;
-    }
-    if (questionSets) {
-        await Promise.all(questionSets.map(qs => questionBankService.deleteQuestionSet(qs.id)));
-    }
-
-    // 2. Find and delete all associated tests
-    const { data: tests, error: testsError } = await supabase
-        .from('tests')
-        .select('id')
-        .eq('discipline_id', id);
-    
-    if (testsError) {
-        console.error('Error finding tests for discipline:', testsError.message);
-        throw testsError;
-    }
-    if (tests) {
-        await Promise.all(tests.map(t => testService.deleteTest(t.id)));
-    }
-
-    // 3. Delete the discipline itself
+    // CRITICAL FIX: The previous cascading logic created a circular dependency.
     const { error } = await supabase.from('disciplines').delete().eq('id', id);
-    if (error) { console.error('Error deleting discipline:', error.message || error); throw error; }
+    if (error) { 
+        console.error('Error deleting discipline:', error.message || error); 
+        throw error; 
+    }
 };
 
 // --- Classes & Students ---
@@ -322,9 +232,6 @@ export const getStudents = async (classId?: string): Promise<Student[]> => {
 };
 
 export const addStudent = async (classId: string, name: string, email: string, password: string, imageUrl?: string): Promise<void> => {
-    // FIX: Replaced the non-existent RPC 'create_student_user' with the standard client-side two-step flow.
-    // This is not atomic, but it fixes the runtime error. The correct long-term fix would be to create the RPC in the DB.
-    
     // Step 1: Create the auth user.
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
@@ -348,11 +255,22 @@ export const addStudent = async (classId: string, name: string, email: string, p
 
     // Step 2: Create the student profile in the public schema.
     try {
+        // Using the returned Auth User ID to create the public profile
         await createStudentProfile(authData.user.id, name, classId, email, imageUrl);
-    } catch (profileError) {
-        // If profile creation fails, we have an orphaned auth user. We cannot delete it from the client-side.
-        console.error('CRITICAL: Auth user was created, but profile creation failed. This will require manual cleanup.', profileError);
-        throw new Error(`Sua conta foi criada, mas houve um erro ao configurar seu perfil de aluno. Por favor, contate o suporte. (Erro: ${(profileError as Error).message})`);
+    } catch (profileError: any) {
+        console.error('CRITICAL: Auth user was created, but profile creation failed.', profileError);
+        
+        // Enhance error message for RLS issues
+        if (profileError.code === '42501' || profileError.message?.includes('row-level security')) {
+             throw new Error(`
+                ERRO DE PERMISSÃO (RLS): O banco de dados impediu a criação do aluno.
+                
+                SOLUÇÃO PARA O ADMIN:
+                Vá no Supabase > SQL Editor e rode o script de políticas de segurança para a tabela 'students'.
+            `);
+        }
+
+        throw new Error(`Sua conta foi criada, mas houve um erro ao configurar seu perfil de aluno. (Erro: ${profileError.message})`);
     }
 };
 
@@ -451,23 +369,37 @@ export const getStudentCourseContent = async (studentId: string): Promise<Course
 
 // --- New Functions for Summaries & True Flashcards ---
 
-export const saveSummary = async (disciplineId: string, title: string, content: string): Promise<OfficialSummary | null> => {
-    const { data, error } = await supabase.rpc('save_summary', {
+export const saveSummary = async (disciplineId: string, title: string, content: string): Promise<boolean> => {
+    // This function relies on RPC which might not return true/false reliably, but checking error is standard.
+    const { error } = await supabase.rpc('save_summary', {
         p_discipline_id: disciplineId,
         p_title: title,
         p_content: content,
-    }).select().single();
+    });
 
     if (error) {
         console.error('Error saving summary:', error.message || error);
-        return null;
+        return false;
     }
-    return data;
+    return true;
 };
 
 export const getSummariesStructure = async (): Promise<Course[]> => {
-    // This RPC is expected to return the full academic tree including summaries for teachers.
-    const { data, error } = await supabase.rpc('get_structured_academic_content');
+    // Replaced RPC with direct select to ensure official_summaries are included
+    const { data, error } = await supabase
+        .from('courses')
+        .select(`
+            *,
+            modules (
+                *,
+                disciplines (
+                    *,
+                    official_summaries (*)
+                )
+            )
+        `)
+        .order('name');
+    
     if (error) {
         console.error("Error fetching summaries structure:", error.message || error);
         return [];
@@ -477,8 +409,49 @@ export const getSummariesStructure = async (): Promise<Course[]> => {
 
 
 export const getStudentSummariesStructure = async (studentId: string): Promise<Course | null> => {
-    // This RPC is expected to return the academic tree relevant to a single student.
-    const { data, error } = await supabase.rpc('get_student_course_content', { p_student_id: studentId });
+    // 1. Get the student's course ID via their class
+    const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('classes(course_id)')
+        .eq('id', studentId)
+        .single();
+
+    if (studentError) {
+        console.error("Error fetching student course info:", studentError.message);
+        return null;
+    }
+    
+    if (!studentData || !studentData.classes) {
+        console.warn("Student has no class assigned or student not found.");
+        return null;
+    }
+
+    // Handle potential array response for relations (though single() should handle row, relations can be tricky)
+    const classesData = Array.isArray(studentData.classes) ? studentData.classes[0] : studentData.classes;
+    // @ts-ignore
+    const courseId = classesData?.course_id;
+
+    if (!courseId) {
+        console.warn("Student class has no course assigned.");
+        return null;
+    }
+
+    // 2. Fetch the full course structure with summaries for that course
+    const { data, error } = await supabase
+        .from('courses')
+        .select(`
+            *,
+            modules (
+                *,
+                disciplines (
+                    *,
+                    official_summaries (*)
+                )
+            )
+        `)
+        .eq('id', courseId)
+        .single();
+
      if (error) {
         console.error("Error fetching student summaries structure:", error.message || error);
         return null;
@@ -515,16 +488,16 @@ export const deleteSummary = async (summaryId: string): Promise<void> => {
 };
 
 
-export const saveFlashcardSet = async (disciplineId: string, subjectName: string, flashcards: TrueFlashcard[]): Promise<FlashcardSet | null> => {
-    const { data, error } = await supabase.rpc('save_flashcard_set', {
+export const saveFlashcardSet = async (disciplineId: string, subjectName: string, flashcards: TrueFlashcard[]): Promise<boolean> => {
+    const { error } = await supabase.rpc('save_flashcard_set', {
         p_discipline_id: disciplineId,
         p_subject_name: subjectName,
         p_flashcards: flashcards,
-    }).select().single();
+    });
 
     if (error) {
         console.error('Error saving flashcard set:', error.message || error);
-        return null;
+        return false;
     }
-    return data;
+    return true;
 };

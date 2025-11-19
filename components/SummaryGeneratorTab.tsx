@@ -131,9 +131,9 @@ const SummaryGeneratorTab: React.FC<SummaryGeneratorTabProps> = ({ pdfText }) =>
 
     const handleSave = async (details: { disciplineId: string, title: string }) => {
         if (!summary) return;
-        const savedSummary = await academicService.saveSummary(details.disciplineId, details.title, summary);
-        if (savedSummary) {
-            alert(`Resumo "${savedSummary.title}" salvo com sucesso!`);
+        const success = await academicService.saveSummary(details.disciplineId, details.title, summary);
+        if (success) {
+            alert(`Resumo "${details.title}" salvo com sucesso!`);
         } else {
             alert("Falha ao salvar o resumo.");
         }
