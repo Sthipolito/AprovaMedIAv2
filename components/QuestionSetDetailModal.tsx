@@ -20,6 +20,7 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
     questionSet, onClose, onDelete, onStudy, onCreateTest, onUpdate, onMoveRequest
 }) => {
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [subjectName, setSubjectName] = useState(questionSet.subjectName);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState<{ question: QuizQuestion; index: number } | null>(null);
@@ -33,11 +34,28 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
     const [newTestName, setNewTestName] = useState('');
 
     useEffect(() => {
-        const initialQuestions = JSON.parse(JSON.stringify(questionSet.questions));
-        setQuestions(initialQuestions);
-        setSubjectName(questionSet.subjectName);
-        setHasChanges(false);
-        setSelectedIndices(new Set(initialQuestions.map((_: any, i: number) => i)));
+        const loadFullData = async () => {
+            setIsLoading(true);
+            
+            // Check if we have questions (lazy loading check)
+            const needsFetch = !questionSet.questions || questionSet.questions.length === 0;
+            
+            if (needsFetch) {
+                const fullSet = await questionBankService.getQuestionSetById(questionSet.id);
+                if (fullSet && fullSet.questions) {
+                    setQuestions(fullSet.questions);
+                    setSelectedIndices(new Set(fullSet.questions.map((_, i) => i)));
+                }
+            } else {
+                setQuestions(JSON.parse(JSON.stringify(questionSet.questions)));
+                setSelectedIndices(new Set(questionSet.questions.map((_, i) => i)));
+            }
+            
+            setSubjectName(questionSet.subjectName);
+            setHasChanges(false);
+            setIsLoading(false);
+        };
+        loadFullData();
     }, [questionSet]);
     
     const selectedQuestions = useMemo(() => {
@@ -285,72 +303,80 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
 
                 {/* Content */}
                 <main className="flex-grow p-6 overflow-y-auto space-y-4">
-                     <div className="flex items-center gap-3 p-3 border-b sticky top-0 bg-white z-10 -mx-6 px-6 shadow-sm">
-                        <input 
-                            type="checkbox"
-                            id="select-all"
-                            checked={areAllSelected}
-                            onChange={(e) => handleSelectAll(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <label htmlFor="select-all" className="font-semibold text-gray-600 cursor-pointer">Selecionar Todas</label>
-                    </div>
-                    {questions.map((q, index) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200 group hover:border-primary/30 transition-colors">
-                            <div className="flex justify-between items-start">
-                                 <div className="flex items-start gap-4 flex-grow">
-                                    <input 
-                                        type="checkbox"
-                                        checked={selectedIndices.has(index)}
-                                        onChange={() => handleSelectionChange(index)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 flex-shrink-0"
-                                    />
-                                    <div className="flex-grow">
-                                        <p className="font-semibold mb-2 text-gray-700 flex-grow"><span className="text-gray-400 mr-2">#{index + 1}</span> {q.question}</p>
-                                        
-                                        {/* Action Buttons Row */}
-                                        <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => setEditingQuestion({ question: q, index })}
-                                                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                                            >
-                                                <EditIcon className="w-3 h-3"/> Editar
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteQuestion(index)}
-                                                className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
-                                            >
-                                                <TrashIcon className="w-3 h-3"/> Excluir
-                                            </button>
+                    {isLoading ? (
+                        <div className="flex justify-center items-center h-48">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3 p-3 border-b sticky top-0 bg-white z-10 -mx-6 px-6 shadow-sm">
+                                <input 
+                                    type="checkbox"
+                                    id="select-all"
+                                    checked={areAllSelected}
+                                    onChange={(e) => handleSelectAll(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label htmlFor="select-all" className="font-semibold text-gray-600 cursor-pointer">Selecionar Todas</label>
+                            </div>
+                            {questions.map((q, index) => (
+                                <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200 group hover:border-primary/30 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                         <div className="flex items-start gap-4 flex-grow">
+                                            <input 
+                                                type="checkbox"
+                                                checked={selectedIndices.has(index)}
+                                                onChange={() => handleSelectionChange(index)}
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 flex-shrink-0"
+                                            />
+                                            <div className="flex-grow">
+                                                <p className="font-semibold mb-2 text-gray-700 flex-grow"><span className="text-gray-400 mr-2">#{index + 1}</span> {q.question}</p>
+                                                
+                                                {/* Action Buttons Row */}
+                                                <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => setEditingQuestion({ question: q, index })}
+                                                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                                                    >
+                                                        <EditIcon className="w-3 h-3"/> Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteQuestion(index)}
+                                                        className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
+                                                    >
+                                                        <TrashIcon className="w-3 h-3"/> Excluir
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
+                                    <ul className="space-y-2 pl-8 mt-2">
+                                        {q.options.map((opt, i) => (
+                                            <li key={i} className={`text-sm flex items-start gap-3 ${q.correctAnswerIndex === null ? 'text-gray-500' : i === q.correctAnswerIndex ? 'font-bold text-green-800' : 'text-gray-600'}`}>
+                                                <span className="mt-0.5">{i === q.correctAnswerIndex ?
+                                                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                                                    : <div className="w-4 h-4 border-2 border-gray-300 rounded-full flex-shrink-0"></div>
+                                                }
+                                                </span>
+                                                <span>{opt}</span>
+                                            </li>
+                                        ))}
+                                        {q.correctAnswerIndex === null && <p className="text-xs italic text-yellow-600 mt-2">Resposta correta não definida.</p>}
+                                    </ul>
+                                     {q.mediaUrl && (
+                                        <div className="mt-3 pl-8">
+                                            <img src={q.mediaUrl} alt="Visual" className="w-24 h-16 object-cover rounded-md border" />
+                                        </div>
+                                     )}
+                                     {q.explanation && (
+                                        <div className="mt-3 pl-8 text-xs text-gray-600 italic border-l-4 border-purple-200 pl-3 bg-purple-50 p-2 rounded-r-md">
+                                            <strong className="text-purple-700 block mb-1">Comentário do Professor (IA):</strong> {q.explanation}
+                                        </div>
+                                     )}
                                 </div>
-                            </div>
-                            <ul className="space-y-2 pl-8 mt-2">
-                                {q.options.map((opt, i) => (
-                                    <li key={i} className={`text-sm flex items-start gap-3 ${q.correctAnswerIndex === null ? 'text-gray-500' : i === q.correctAnswerIndex ? 'font-bold text-green-800' : 'text-gray-600'}`}>
-                                        <span className="mt-0.5">{i === q.correctAnswerIndex ?
-                                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-                                            : <div className="w-4 h-4 border-2 border-gray-300 rounded-full flex-shrink-0"></div>
-                                        }
-                                        </span>
-                                        <span>{opt}</span>
-                                    </li>
-                                ))}
-                                {q.correctAnswerIndex === null && <p className="text-xs italic text-yellow-600 mt-2">Resposta correta não definida.</p>}
-                            </ul>
-                             {q.mediaUrl && (
-                                <div className="mt-3 pl-8">
-                                    <img src={q.mediaUrl} alt="Visual" className="w-24 h-16 object-cover rounded-md border" />
-                                </div>
-                             )}
-                             {q.explanation && (
-                                <div className="mt-3 pl-8 text-xs text-gray-600 italic border-l-4 border-purple-200 pl-3 bg-purple-50 p-2 rounded-r-md">
-                                    <strong className="text-purple-700 block mb-1">Comentário do Professor (IA):</strong> {q.explanation}
-                                </div>
-                             )}
-                        </div>
-                    ))}
+                            ))}
+                        </>
+                    )}
                 </main>
 
                 {hasChanges && (

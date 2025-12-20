@@ -1,11 +1,27 @@
 
-import React, { useState, useEffect } from 'react';
-import { LayersIcon, PlusCircleIcon, TrashIcon, SparklesIcon, BrainCircuitIcon, SaveIcon, XIcon, EditIcon, TrendingUpIcon } from './IconComponents';
+import React, { useState, useEffect, useMemo } from 'react';
+import { LayersIcon, SparklesIcon, BrainCircuitIcon, SaveIcon, XIcon, TrendingUpIcon, UploadCloudIcon, TrashIcon, SlidersHorizontalIcon, MoreVerticalIcon } from './IconComponents';
 import * as flashcardService from '../services/flashcardService';
 import * as geminiService from '../services/geminiService';
 import * as academicService from '../services/academicService';
+import { usePdfParser } from '../hooks/usePdfParser';
 import { FlashcardSet, TrueFlashcard, Course, Module, Discipline } from '../types';
 import TrueFlashcardStudyModal from './TrueFlashcardStudyModal';
+import AdvancedFilterPanel from './AdvancedFilterPanel';
+
+// --- Components ---
+
+const StatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType; color?: string }> = ({ title, value, icon: Icon, color = "text-primary" }) => (
+    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 transition-all hover:shadow-md">
+        <div className={`p-3 rounded-full bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
+            <Icon className={`w-6 h-6 ${color}`} />
+        </div>
+        <div>
+            <p className="text-sm font-semibold text-gray-500">{title}</p>
+            <p className="text-2xl font-bold text-gray-800">{value}</p>
+        </div>
+    </div>
+);
 
 // --- MODAL: Detalhes do Baralho ---
 const FlashcardSetDetailModal: React.FC<{ deck: FlashcardSet; onClose: () => void; onStudy: () => void; onDelete: () => void }> = ({ deck, onClose, onStudy, onDelete }) => {
@@ -83,11 +99,35 @@ const FlashcardSetDetailModal: React.FC<{ deck: FlashcardSet; onClose: () => voi
 };
 
 // --- MODAL: AI Generator ---
-const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => void; }> = ({ onClose, onCreated }) => {
+const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => void; initialFile?: File | null }> = ({ onClose, onCreated, initialFile }) => {
     const [step, setStep] = useState<1 | 2>(1);
     const [inputText, setInputText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedCards, setGeneratedCards] = useState<TrueFlashcard[]>([]);
+    
+    // PDF Parsing
+    const { parsePdf, isLoading: isParsing } = usePdfParser();
+    const [parsingError, setParsingError] = useState('');
+
+    useEffect(() => {
+        if (initialFile) {
+            handlePdfProcess(initialFile);
+        }
+    }, [initialFile]);
+
+    const handlePdfProcess = async (file: File) => {
+        setParsingError('');
+        try {
+            const parsed = await parsePdf(file);
+            if(parsed && parsed.text) {
+                setInputText(parsed.text);
+            } else {
+                setParsingError("Não foi possível ler o texto do PDF.");
+            }
+        } catch (e) {
+            setParsingError("Erro ao processar PDF.");
+        }
+    }
     
     // Selection State
     const [courses, setCourses] = useState<Course[]>([]);
@@ -148,7 +188,7 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
                 <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <SparklesIcon className="w-6 h-6 text-primary" />
-                        Gerador de Neuro-Flashcards
+                        Gerador de Flashcards
                     </h2>
                     <button onClick={onClose}><XIcon className="w-6 h-6 text-gray-500"/></button>
                 </div>
@@ -156,20 +196,25 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
                 <div className="flex-grow p-6 overflow-y-auto">
                     {step === 1 ? (
                         <div className="space-y-4 h-full flex flex-col">
-                            <p className="text-gray-600">Cole seu resumo, anotações ou texto de aula abaixo. A IA criará cards otimizados com mnemônicos.</p>
+                            <p className="text-gray-600">
+                                {isParsing ? "Lendo arquivo PDF..." : "Cole seu resumo ou revise o texto extraído do PDF abaixo."}
+                            </p>
+                            {parsingError && <p className="text-red-500 text-sm">{parsingError}</p>}
+                            
                             <textarea 
                                 value={inputText}
                                 onChange={e => setInputText(e.target.value)}
                                 className="flex-grow w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none resize-none font-mono text-sm"
-                                placeholder="Cole o conteúdo aqui..."
+                                placeholder="Conteúdo para gerar flashcards..."
+                                disabled={isParsing}
                             />
                             <button 
                                 onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className="w-full py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex justify-center items-center gap-2 shadow-lg"
+                                disabled={isGenerating || isParsing || !inputText.trim()}
+                                className="w-full py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex justify-center items-center gap-2 shadow-lg disabled:bg-gray-300"
                             >
                                 {isGenerating ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <BrainCircuitIcon className="w-6 h-6"/>}
-                                {isGenerating ? "Criando Conexões Neurais..." : "Gerar Baralho Inteligente"}
+                                {isGenerating ? "Criando Conexões Neurais..." : "Gerar Flashcards"}
                             </button>
                         </div>
                     ) : (
@@ -200,7 +245,7 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
                                     </div>
                                 </div>
                                 <div className="bg-gray-100 p-5 rounded-xl h-fit sticky top-0">
-                                    <h3 className="font-bold text-gray-800 mb-4">Salvar Baralho</h3>
+                                    <h3 className="font-bold text-gray-800 mb-4">Salvar Flashcards</h3>
                                     <div className="space-y-3">
                                         <select className="w-full p-2 rounded border" onChange={e => setSelectedCourseId(e.target.value)} value={selectedCourseId}>
                                             <option value="">Selecione o Curso</option>
@@ -216,7 +261,7 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
                                         </select>
                                         <input 
                                             type="text" 
-                                            placeholder="Nome do Baralho (ex: Anatomia Cardíaca)"
+                                            placeholder="Nome do Conjunto (ex: Anatomia Cardíaca)"
                                             className="w-full p-2 rounded border"
                                             value={subjectName}
                                             onChange={e => setSubjectName(e.target.value)}
@@ -226,7 +271,7 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
                                             disabled={isSaving}
                                             className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-md flex justify-center items-center gap-2"
                                         >
-                                            {isSaving ? "Salvando..." : "Salvar Baralho"} <SaveIcon className="w-4 h-4"/>
+                                            {isSaving ? "Salvando..." : "Salvar Flashcards"} <SaveIcon className="w-4 h-4"/>
                                         </button>
                                     </div>
                                 </div>
@@ -239,62 +284,193 @@ const FlashcardGeneratorModal: React.FC<{ onClose: () => void; onCreated: () => 
     );
 };
 
+interface FilterState {
+    searchTerm: string;
+    selectedDisciplines: string[];
+    selectedYears: string[];
+    selectedInstitutions: string[];
+}
+
 // --- Main Page ---
 const TrueFlashcardsPage: React.FC = () => {
     const [decks, setDecks] = useState<FlashcardSet[]>([]);
     const [loading, setLoading] = useState(true);
     const [isGenModalOpen, setIsGenModalOpen] = useState(false);
+    const [pdfFileForUpload, setPdfFileForUpload] = useState<File | null>(null);
+    
     const [viewingDeck, setViewingDeck] = useState<FlashcardSet | null>(null);
     const [simulatingDeck, setSimulatingDeck] = useState<FlashcardSet | null>(null);
 
-    const loadDecks = async () => {
+    // Filters and Data
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const [allDisciplines, setAllDisciplines] = useState<{id: string, name: string}[]>([]);
+    const [filters, setFilters] = useState<FilterState>({
+        searchTerm: '',
+        selectedDisciplines: [],
+        selectedYears: [],
+        selectedInstitutions: []
+    });
+    const [isFiltering, setIsFiltering] = useState(false);
+
+    const loadData = async () => {
         setLoading(true);
-        const data = await flashcardService.getFlashcardSets();
-        setDecks(data);
+        const [decksData, coursesData] = await Promise.all([
+            flashcardService.getFlashcardSets(),
+            academicService.getStructuredDataForManagement()
+        ]);
+        setDecks(decksData);
+        
+        // Extract disciplines for the filter
+        const disciplines = coursesData.flatMap(c => c.modules?.flatMap(m => m.disciplines || []) || []);
+        setAllDisciplines(disciplines.map(d => ({ id: d.id, name: d.name })));
+        
         setLoading(false);
     };
 
     useEffect(() => {
-        loadDecks();
+        loadData();
     }, []);
 
+    const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setPdfFileForUpload(e.target.files[0]);
+            setIsGenModalOpen(true);
+        }
+    };
+
     const handleDelete = async (id: string) => {
-        if (window.confirm("Excluir este baralho permanentemente?")) {
+        if (window.confirm("Excluir este conjunto permanentemente?")) {
             await flashcardService.deleteFlashcardSet(id);
             if (viewingDeck?.id === id) setViewingDeck(null);
-            loadDecks();
+            loadData();
         }
     };
     
     const handleSimulate = (deck: FlashcardSet) => {
         setSimulatingDeck(deck);
-        // We can keep the detail modal open behind or close it. Let's keep logic simple.
+    };
+
+    // Metrics Calculation
+    const stats = useMemo(() => {
+        const totalDecks = decks.length;
+        const totalCards = decks.reduce((acc, deck) => acc + deck.flashcards.length, 0);
+        const avgCards = totalDecks > 0 ? Math.round(totalCards / totalDecks) : 0;
+        return { totalDecks, totalCards, avgCards };
+    }, [decks]);
+
+    // Derived Filters Data (Years/Institutions from titles)
+    const { availableYears, availableInstitutions } = useMemo(() => {
+        const years = new Set<string>();
+        const institutions = new Set<string>();
+        const yearRegex = /\b(19|20)\d{2}\b/g;
+        const instRegex = /\b[A-Z]{2,6}\b/g;
+
+        decks.forEach(d => {
+            const name = d.subject_name;
+            const foundYears = name.match(yearRegex);
+            if (foundYears) foundYears.forEach(y => years.add(y));
+
+            const foundInsts = name.match(instRegex);
+            if (foundInsts) {
+                foundInsts.forEach(inst => {
+                    if (!['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'EM', 'NA', 'DA', 'DO', 'DE'].includes(inst)) {
+                        institutions.add(inst);
+                    }
+                });
+            }
+        });
+
+        return {
+            availableYears: Array.from(years).sort().reverse(),
+            availableInstitutions: Array.from(institutions).sort()
+        };
+    }, [decks]);
+
+    // Filter Logic
+    const filteredDecks = useMemo(() => {
+        return decks.filter(deck => {
+            const matchesSearch = filters.searchTerm === '' || 
+                deck.subject_name.toLowerCase().includes(filters.searchTerm.toLowerCase());
+            
+            const matchesDiscipline = filters.selectedDisciplines.length === 0 || 
+                filters.selectedDisciplines.includes(deck.discipline_id);
+
+            const matchesYear = filters.selectedYears.length === 0 || 
+                filters.selectedYears.some(year => deck.subject_name.includes(year));
+
+            const matchesInstitution = filters.selectedInstitutions.length === 0 || 
+                filters.selectedInstitutions.some(inst => deck.subject_name.includes(inst));
+
+            return matchesSearch && matchesDiscipline && matchesYear && matchesInstitution;
+        });
+    }, [decks, filters]);
+
+    const handleApplyFilters = () => {
+        setIsFiltering(true);
+        setIsFilterPanelOpen(false);
+    };
+
+    const handleClearFilters = () => {
+        setIsFiltering(false);
+        setFilters({ searchTerm: '', selectedDisciplines: [], selectedYears: [], selectedInstitutions: [] });
+        setIsFilterPanelOpen(false);
     };
 
     return (
         <div className="h-full w-full flex flex-col bg-gray-50 overflow-y-auto">
-            <header className="p-8 border-b border-gray-200 bg-white flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                        <LayersIcon className="w-8 h-8 text-primary" />
-                        Flashcards (Neuro-Repetição)
-                    </h1>
-                    <p className="text-gray-500 mt-1">Gerencie baralhos de memorização ativa focados em retenção de longo prazo.</p>
+            <header className="p-8 border-b border-gray-200 bg-white">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                            <LayersIcon className="w-8 h-8 text-primary" />
+                            Flashcards
+                        </h1>
+                        <p className="text-gray-500 mt-1">Gerencie conjuntos de memorização ativa focados em retenção de longo prazo.</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <label className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer">
+                            <UploadCloudIcon className="w-5 h-5" /> Upload PDF de Flashcards
+                            <input type="file" className="hidden" accept=".pdf" onChange={handlePdfUpload} />
+                        </label>
+                        <button 
+                            onClick={() => { setPdfFileForUpload(null); setIsGenModalOpen(true); }}
+                            className="px-6 py-3 bg-gradient-to-r from-primary to-teal-500 text-white font-bold rounded-xl hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2"
+                        >
+                            <SparklesIcon className="w-5 h-5" /> Novo Flashcard com IA
+                        </button>
+                    </div>
                 </div>
-                <button 
-                    onClick={() => setIsGenModalOpen(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-primary to-teal-500 text-white font-bold rounded-xl hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2"
-                >
-                    <SparklesIcon className="w-5 h-5" /> Novo Baralho com IA
-                </button>
+
+                {/* Filters */}
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => setIsFilterPanelOpen(true)}
+                        className={`px-4 py-2 font-semibold rounded-lg flex items-center gap-2 text-sm transition-all border ${isFiltering ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        <SlidersHorizontalIcon className="w-4 h-4" />
+                        {isFiltering ? 'Filtros Ativos' : 'Filtrar Flashcards'}
+                    </button>
+                    {isFiltering && (
+                        <span className="text-sm text-gray-500">Exibindo {filteredDecks.length} de {decks.length} baralhos</span>
+                    )}
+                </div>
             </header>
 
             <main className="flex-grow p-8">
+                {/* Metrics Header */}
+                {!loading && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <StatCard title="Total de Baralhos" value={stats.totalDecks} icon={LayersIcon} color="text-blue-600"/>
+                        <StatCard title="Total de Cards" value={stats.totalCards} icon={BrainCircuitIcon} color="text-purple-600"/>
+                        <StatCard title="Média por Baralho" value={stats.avgCards} icon={TrendingUpIcon} color="text-teal-600"/>
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="flex justify-center items-center h-64"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
-                ) : decks.length > 0 ? (
+                ) : filteredDecks.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {decks.map(deck => (
+                        {filteredDecks.map(deck => (
                             <div 
                                 key={deck.id} 
                                 onClick={() => setViewingDeck(deck)}
@@ -335,14 +511,23 @@ const TrueFlashcardsPage: React.FC = () => {
                         <div className="inline-block p-6 bg-white rounded-full shadow-sm mb-4">
                             <LayersIcon className="w-12 h-12 text-gray-300" />
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-700 mb-2">Nenhum baralho encontrado</h2>
-                        <p className="text-gray-500">Use a IA para transformar seus resumos em flashcards poderosos.</p>
+                        <h2 className="text-2xl font-bold text-gray-700 mb-2">Nenhum conjunto encontrado</h2>
+                        <p className="text-gray-500">Tente ajustar seus filtros ou crie novos flashcards com IA.</p>
+                        {isFiltering && (
+                            <button onClick={handleClearFilters} className="mt-4 text-primary font-bold hover:underline">
+                                Limpar Filtros
+                            </button>
+                        )}
                     </div>
                 )}
             </main>
 
             {isGenModalOpen && (
-                <FlashcardGeneratorModal onClose={() => setIsGenModalOpen(false)} onCreated={loadDecks} />
+                <FlashcardGeneratorModal 
+                    onClose={() => { setIsGenModalOpen(false); setPdfFileForUpload(null); }} 
+                    onCreated={loadData}
+                    initialFile={pdfFileForUpload}
+                />
             )}
 
             {viewingDeck && (
@@ -362,6 +547,18 @@ const TrueFlashcardsPage: React.FC = () => {
                     />
                 </div>
             )}
+
+            <AdvancedFilterPanel 
+                isOpen={isFilterPanelOpen}
+                onClose={() => setIsFilterPanelOpen(false)}
+                disciplines={allDisciplines}
+                availableYears={availableYears}
+                availableInstitutions={availableInstitutions}
+                filters={filters}
+                setFilters={setFilters}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+            />
         </div>
     );
 };

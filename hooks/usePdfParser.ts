@@ -32,7 +32,17 @@ export const usePdfParser = () => {
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+                let pageText = textContent.items.map((item: any) => item.str).join(' ');
+                
+                // Normalização de Ligaduras (Ligatures Fix)
+                // Substitui caracteres especiais de tipografia pelas letras normais
+                pageText = pageText
+                    .replace(/ﬁ/g, 'fi')
+                    .replace(/ﬂ/g, 'fl')
+                    .replace(/ﬀ/g, 'ff')
+                    .replace(/ﬃ/g, 'ffi')
+                    .replace(/ﬄ/g, 'ffl');
+
                 fullText += pageText + '\n\n';
             }
             setIsLoading(false);

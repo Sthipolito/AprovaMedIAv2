@@ -115,6 +115,9 @@ const FlashcardModal: React.FC<FlashcardModalProps> = ({ studentId, questionSet,
 
     const [isOwner, setIsOwner] = useState(false);
 
+    // State to store loaded questions (can overwrite initial prop)
+    const [loadedQuestions, setLoadedQuestions] = useState<QuizQuestion[]>([]);
+
     useEffect(() => {
         const checkOwnership = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -130,20 +133,45 @@ const FlashcardModal: React.FC<FlashcardModalProps> = ({ studentId, questionSet,
 
     const isPersistent = useMemo(() => questionSet.id !== 'chat-session-set' && isOwner, [questionSet.id, isOwner]);
     
+    useEffect(() => {
+        const init = async () => {
+            setIsLoading(true);
+            
+            // If questions are provided in props, use them.
+            // Otherwise, fetch them if we have an ID.
+            if (questionSet.questions && questionSet.questions.length > 0) {
+                setLoadedQuestions(questionSet.questions);
+            } else if (questionSet.id && questionSet.id !== 'chat-session-set') {
+                const fullSet = await import('../services/questionBankService').then(m => m.getQuestionSetById(questionSet.id));
+                if (fullSet && fullSet.questions) {
+                    setLoadedQuestions(fullSet.questions);
+                } else {
+                    setError("Não foi possível carregar as questões deste assunto.");
+                }
+            } else {
+                setLoadedQuestions([]);
+            }
+            
+            setIsLoading(false);
+        };
+        init();
+    }, [questionSet]);
+
     const questions = useMemo(() =>
-        (questionSet.questions || []).filter(q => q && q.question && q.options?.length > 0)
-    , [questionSet.questions]);
+        (loadedQuestions || []).filter(q => q && q.question && q.options?.length > 0)
+    , [loadedQuestions]);
     
     const currentQuestion = questions[currentIndex];
     const isLastQuestion = currentIndex === questions.length - 1;
     const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
     useEffect(() => {
-        if (questions.length === 0) {
+        if (questions.length === 0 && !isLoading) {
             setError("Este conjunto de estudos não contém questões válidas.");
-            setIsLoading(false);
             return;
         }
+        
+        if (questions.length === 0) return; // Wait for loading
 
         if (!isPersistent) {
             setSession({
@@ -191,7 +219,7 @@ const FlashcardModal: React.FC<FlashcardModalProps> = ({ studentId, questionSet,
             }
         };
         startSession();
-    }, [studentId, questionSet.id, questionSet.subjectName, questions, isPersistent]);
+    }, [studentId, questionSet.id, questions, isPersistent]); // Removed isLoading from deps to prevent loop
 
 
     const handleSelectOption = (index: number) => {

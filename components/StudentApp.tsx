@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { Student } from '../types';
@@ -6,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import { useUser } from '../contexts/UserContext';
 
 import StudentSidebar from './StudentSidebar';
+import MobileNav from './MobileNav'; // Importando a navegação mobile
 import StudentDashboardPage from './student/StudentDashboardPage';
 import StudentTestsPage from './student/StudentTestsPage';
 import StudentProfilePage from './student/StudentProfilePage';
@@ -14,8 +14,8 @@ import StudentTrueFlashcardsPage from './student/TrueFlashcardsPage';
 import StudentExplorePage from './student/StudentExplorePage';
 import StudentLibraryPage from './student/StudentLibraryPage';
 import StudentCommunityPage from './student/StudentCommunityPage'; 
-import StudentMarketplacePage from './student/StudentMarketplacePage'; // Fase 4
-import StudentStudyRoomsPage from './student/StudentStudyRoomsPage'; // Fase 4
+import StudentMarketplacePage from './student/StudentMarketplacePage';
+import StudentStudyRoomsPage from './student/StudentStudyRoomsPage';
 
 interface StudentAppProps {
     session: Session;
@@ -83,15 +83,23 @@ const StudentApp: React.FC<StudentAppProps> = ({ studentProfile, session }) => {
     
     return (
         <div className="flex h-full w-full bg-gray-100">
-            <StudentSidebar
-                studentName={studentProfile.name}
-                currentView={currentView}
-                setCurrentView={setCurrentView}
-                onLogout={handleLogout}
-            />
-            <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Sidebar visível apenas em Desktop (md e acima) */}
+            <div className="hidden md:flex h-full">
+                <StudentSidebar
+                    studentName={studentProfile.name}
+                    currentView={currentView}
+                    setCurrentView={setCurrentView}
+                    onLogout={handleLogout}
+                />
+            </div>
+
+            {/* Conteúdo Principal */}
+            <div className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
                 {renderView()}
             </div>
+
+            {/* Navegação Mobile visível apenas em Mobile (abaixo de md) */}
+            <MobileNav currentView={currentView} setCurrentView={setCurrentView} />
         </div>
     );
 };

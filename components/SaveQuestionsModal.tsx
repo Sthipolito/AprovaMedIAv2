@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { XIcon } from './IconComponents';
-import { Course, Module, Discipline } from '../types';
+import { Course, Module, Discipline, QuestionSet } from '../types';
 import * as academicService from '../services/academicService';
+import * as questionBankService from '../services/questionBankService';
 
 interface SaveQuestionsModalProps {
     onClose: () => void;
@@ -10,18 +12,26 @@ interface SaveQuestionsModalProps {
         subjectName: string;
         createTest: boolean;
         testName: string;
+        existingSetId?: string; // New: optional existing ID
     }) => void;
 }
 
 const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave }) => {
+    const [mode, setMode] = useState<'new' | 'existing'>('new');
+    
+    // New Subject State
     const [subjectName, setSubjectName] = useState('');
+    
+    // Selectors
     const [courses, setCourses] = useState<Course[]>([]);
     const [modules, setModules] = useState<Module[]>([]);
     const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+    const [existingSets, setExistingSets] = useState<QuestionSet[]>([]);
 
     const [selectedCourseId, setSelectedCourseId] = useState('');
     const [selectedModuleId, setSelectedModuleId] = useState('');
     const [selectedDisciplineId, setSelectedDisciplineId] = useState('');
+    const [selectedSetId, setSelectedSetId] = useState('');
     
     const [shouldCreateTest, setShouldCreateTest] = useState(false);
     const [testName, setTestName] = useState('');
@@ -29,11 +39,10 @@ const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave
     const [error, setError] = useState('');
     
     useEffect(() => {
-        // When subject name is typed, auto-populate test name
-        if (subjectName) {
+        if (subjectName && mode === 'new') {
             setTestName(subjectName);
         }
-    }, [subjectName]);
+    }, [subjectName, mode]);
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -68,22 +77,66 @@ const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave
         fetchDisciplines();
     }, [selectedModuleId]);
 
-    const handleSave = () => {
-        setError('');
-        if (!selectedDisciplineId || !subjectName.trim()) {
-            setError('Por favor, preencha o nome do assunto e selecione uma disciplina.');
-            return;
+    useEffect(() => {
+        const fetchSets = async () => {
+            if (selectedDisciplineId) {
+                const sets = await questionBankService.getQuestionSetsByDiscipline(selectedDisciplineId);
+                setExistingSets(sets);
+                setSelectedSetId('');
+            } else {
+                setExistingSets([]);
+            }
         }
+        if (mode === 'existing') {
+            fetchSets();
+        }
+    }, [selectedDisciplineId, mode]);
+
+    const handleSave = async () => {
+        setError('');
+        
+        if (mode === 'new') {
+            if (!selectedDisciplineId || !subjectName.trim()) {
+                setError('Por favor, preencha o nome do assunto e selecione uma disciplina.');
+                return;
+            }
+        } else {
+            if (!selectedSetId) {
+                setError('Por favor, selecione o assunto existente.');
+                return;
+            }
+        }
+
         if (shouldCreateTest && !testName.trim()) {
             setError('Por favor, forneça um nome para o teste.');
             return;
         }
-        onSave({
-            disciplineId: selectedDisciplineId,
-            subjectName: subjectName.trim(),
-            createTest: shouldCreateTest,
-            testName: testName.trim(),
-        });
+
+        if (mode === 'existing') {
+            // Logic handled in parent or service wrapper
+            // But we need to update the parent callback to handle append
+            // For now, we reuse the onSave but maybe pass a flag?
+            // Actually, best to call service here if it was simple, but parent holds the questions.
+            // Let's pass 'existingSetId' up.
+            
+            // To be safe, we need the disciplineId of the existing set (we have it in selectedDisciplineId)
+            // and the name (we can find it)
+            const chosenSet = existingSets.find(s => s.id === selectedSetId);
+            onSave({
+                disciplineId: selectedDisciplineId,
+                subjectName: chosenSet?.subjectName || '',
+                createTest: shouldCreateTest,
+                testName: testName.trim(),
+                existingSetId: selectedSetId
+            });
+        } else {
+            onSave({
+                disciplineId: selectedDisciplineId,
+                subjectName: subjectName.trim(),
+                createTest: shouldCreateTest,
+                testName: testName.trim(),
+            });
+        }
         onClose();
     };
 
@@ -109,6 +162,23 @@ const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave
                     </button>
                 </div>
                 <div className="p-6 space-y-4">
+                    
+                    {/* Mode Toggle */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setMode('new')}
+                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === 'new' ? 'bg-white shadow text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Novo Assunto
+                        </button>
+                        <button 
+                            onClick={() => setMode('existing')}
+                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === 'existing' ? 'bg-white shadow text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Adicionar a Existente
+                        </button>
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Vincular a:</label>
                         <div className="space-y-2 p-3 bg-gray-50 border rounded-md">
@@ -117,19 +187,38 @@ const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave
                              {renderSelect("discipline-select", selectedDisciplineId, e => setSelectedDisciplineId(e.target.value), disciplines, "Selecione uma disciplina")}
                         </div>
                     </div>
-                    <div>
-                        <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                            Nome do Assunto (Este Conjunto de Questões)
-                        </label>
-                        <input
-                            type="text"
-                            id="subject"
-                            value={subjectName}
-                            onChange={(e) => setSubjectName(e.target.value)}
-                            placeholder="Ex: Farmacologia - Prova 2023"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none bg-white text-gray-800 placeholder:text-gray-400"
-                        />
-                    </div>
+
+                    {mode === 'new' ? (
+                        <div>
+                            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                                Nome do Novo Assunto
+                            </label>
+                            <input
+                                type="text"
+                                id="subject"
+                                value={subjectName}
+                                onChange={(e) => setSubjectName(e.target.value)}
+                                placeholder="Ex: Farmacologia - Prova 2023"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none bg-white text-gray-800 placeholder:text-gray-400"
+                            />
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Selecione o Assunto Existente</label>
+                            <select
+                                value={selectedSetId}
+                                onChange={(e) => setSelectedSetId(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary focus:outline-none"
+                                disabled={!selectedDisciplineId}
+                            >
+                                <option value="">-- Escolha um assunto --</option>
+                                {existingSets.map(set => (
+                                    <option key={set.id} value={set.id}>{set.subjectName} ({set.questions.length} Qs)</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                      <div className="p-3 border-t">
                         <label className="flex items-center gap-3 cursor-pointer">
                             <input
@@ -138,7 +227,7 @@ const SaveQuestionsModal: React.FC<SaveQuestionsModalProps> = ({ onClose, onSave
                                 onChange={(e) => setShouldCreateTest(e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                             />
-                            <span className="font-medium text-gray-700">Também criar um Teste com estas questões selecionadas</span>
+                            <span className="font-medium text-gray-700">Também criar um Teste com estas questões</span>
                         </label>
                         {shouldCreateTest && (
                             <div className="mt-3 pl-7">

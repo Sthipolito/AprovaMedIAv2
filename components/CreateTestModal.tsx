@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { XIcon, ChevronRightIcon, ArrowLeftIcon, SearchIcon } from './IconComponents';
 import * as academicService from '../services/academicService';
@@ -22,6 +23,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ onClose, onTestCreate
     
     // Step 1 State
     const [testName, setTestName] = useState('');
+    const [banca, setBanca] = useState(''); // Added Banca State
     const [contextCourseId, setContextCourseId] = useState<string | null>(null);
     const [contextModuleId, setContextModuleId] = useState<string | null>(null);
     const [contextDisciplineId, setContextDisciplineId] = useState<string | null>(null);
@@ -194,7 +196,8 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ onClose, onTestCreate
             { 
                 courseId: contextCourseId || null, 
                 moduleId: contextModuleId || null, 
-                disciplineId: contextDisciplineId || null 
+                disciplineId: contextDisciplineId || null,
+                banca: banca || null
             }
         );
 
@@ -221,10 +224,17 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ onClose, onTestCreate
     const renderStep1 = () => (
         <div className="space-y-4">
             <h3 className="text-xl font-semibold text-gray-800">1. Detalhes do Teste</h3>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Teste</label>
-                <input type="text" value={testName} onChange={e => setTestName(e.target.value)} placeholder="Ex: Prova Mensal de Cardiologia" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400"/>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Teste</label>
+                    <input type="text" value={testName} onChange={e => setTestName(e.target.value)} placeholder="Ex: Prova Mensal de Cardiologia" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Banca Examinadora</label>
+                    <input type="text" value={banca} onChange={e => setBanca(e.target.value)} placeholder="Ex: FGV, Cebraspe" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400"/>
+                </div>
             </div>
+            
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contexto Acadêmico (Opcional)</label>
                 <div className="space-y-2 p-2 border rounded-md bg-gray-50">

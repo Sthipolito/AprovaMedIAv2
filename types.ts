@@ -80,6 +80,8 @@ export interface QuestionSet {
     relevance?: 'Alta' | 'Média' | 'Baixa';
     incidence?: number; // percentage e.g. 1.96
     difficulty?: 'Fácil' | 'Média' | 'Difícil';
+    // Otimização de Performance
+    question_count?: number; // Vindo da função SQL
 }
 
 export interface QuestionBank {
@@ -96,6 +98,7 @@ export interface Test {
     discipline_id?: string;
     test_type: 'fixed' | 'scheduled';
     duration_minutes?: number; // Duração em minutos para testes fixos
+    banca?: string; // Nova propriedade para filtrar por banca
     // For analytics
     attemptCount?: number;
     averageScore?: number;

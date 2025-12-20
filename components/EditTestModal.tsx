@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { XIcon, ChevronRightIcon, ArrowLeftIcon, SearchIcon, EditIcon } from './IconComponents';
 import * as academicService from '../services/academicService';
@@ -12,6 +13,7 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
     
     // Step 1 State
     const [testName, setTestName] = useState('');
+    const [banca, setBanca] = useState(''); // New Field for Banca
     const [contextCourseId, setContextCourseId] = useState<string | null>(null);
     const [contextModuleId, setContextModuleId] = useState<string | null>(null);
     const [contextDisciplineId, setContextDisciplineId] = useState<string | null>(null);
@@ -45,6 +47,7 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
 
             // Populate from prop
             setTestName(test.name);
+            setBanca(test.banca || ''); // Populate Banca
             setContextCourseId(test.course_id || null);
             setContextModuleId(test.module_id || null);
             setContextDisciplineId(test.discipline_id || null);
@@ -113,9 +116,9 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
         if (!isStep1Valid || !isStep2Valid || !isStep3Valid) return;
         setIsSaving(true);
 
-        // FIX: Explicitly typing `questions` and the overall payload structure to satisfy the service function's signature.
         const testDetailsPayload: Partial<Omit<Test, 'id' | 'createdAt' | 'assignments' | 'attemptCount' | 'averageScore'>> = {
             name: testName,
+            banca: banca, // Include Banca
             questions: Array.from(selectedQuestions.values()),
             test_type: testType,
             course_id: contextCourseId || undefined,
@@ -138,20 +141,27 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
         
         setIsSaving(false);
         if (success) {
-            alert("Teste atualizado com sucesso!");
+            alert("Prova atualizada com sucesso!");
             onTestUpdated();
         } else {
-            alert("Falha ao atualizar o teste.");
+            alert("Falha ao atualizar a prova.");
         }
     };
     
     const renderStep1 = () => (
         <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-gray-800">1. Detalhes do Teste</h3>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Teste</label>
-                <input type="text" value={testName} onChange={e => setTestName(e.target.value)} placeholder="Ex: Prova Mensal de Cardiologia" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400"/>
+            <h3 className="text-xl font-semibold text-gray-800">1. Detalhes da Prova</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Prova</label>
+                    <input type="text" value={testName} onChange={e => setTestName(e.target.value)} placeholder="Ex: Prova Mensal de Cardiologia" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary outline-none"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Banca Examinadora</label>
+                    <input type="text" value={banca} onChange={e => setBanca(e.target.value)} placeholder="Ex: FGV, Cebraspe" className="w-full p-2 border rounded-md bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary outline-none"/>
+                </div>
             </div>
+            
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contexto Acadêmico (Opcional)</label>
                 <div className="space-y-2 p-2 border rounded-md bg-gray-50">
@@ -177,7 +187,7 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
             <h3 className="text-xl font-semibold text-gray-800 mb-4">2. Questões Incluídas ({selectedQuestions.size})</h3>
             <div className="border rounded-lg p-3 h-[50vh] flex flex-col">
                 <div className="overflow-y-auto space-y-1 text-sm">
-                    <p className="text-xs text-center p-2 bg-yellow-100 text-yellow-800 rounded-md">A edição de questões individuais não é suportada aqui. Para alterar as questões, por favor, crie um novo teste.</p>
+                    <p className="text-xs text-center p-2 bg-yellow-100 text-yellow-800 rounded-md">A edição de questões individuais não é suportada aqui. Para alterar as questões, por favor, crie uma nova prova.</p>
                     {/* FIX: Explicitly type the 'q' parameter to resolve the 'unknown' type error. */}
                     {Array.from(selectedQuestions.values()).map((q: QuizQuestion, i) => (
                         <div key={i} className="flex items-center gap-2 p-1 bg-gray-50 rounded">
@@ -194,10 +204,10 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
          <div className="space-y-4">
              <h3 className="text-xl font-semibold text-gray-800">3. Agendamento e Atribuição</h3>
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Teste</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Prova</label>
                 <div className="flex gap-2">
-                    <button onClick={() => setTestType('fixed')} className={`flex-1 p-3 rounded-lg border ${testType === 'fixed' ? 'bg-primary/10 border-primary' : ''}`}>Fixo (Para estudo)</button>
-                    <button onClick={() => setTestType('scheduled')} className={`flex-1 p-3 rounded-lg border ${testType === 'scheduled' ? 'bg-primary/10 border-primary' : ''}`}>Agendado (Avaliação)</button>
+                    <button onClick={() => setTestType('fixed')} className={`flex-1 p-3 rounded-lg border ${testType === 'fixed' ? 'bg-primary/10 border-primary' : ''}`}>Fixa (Na Íntegra)</button>
+                    <button onClick={() => setTestType('scheduled')} className={`flex-1 p-3 rounded-lg border ${testType === 'scheduled' ? 'bg-primary/10 border-primary' : ''}`}>Simulado (Agendado)</button>
                 </div>
              </div>
              {testType === 'scheduled' && (
@@ -251,7 +261,7 @@ const EditTestModal: React.FC<{ test: TestWithAnalytics; onClose: () => void; on
                 <header className="p-4 border-b flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <EditIcon className="w-6 h-6 text-primary"/>
-                        <h2 className="text-2xl font-bold text-gray-800">Editar Teste</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">Editar Prova</h2>
                     </div>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200"><XIcon className="w-6 h-6"/></button>
                 </header>

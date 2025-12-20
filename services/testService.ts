@@ -9,30 +9,49 @@ export type TestWithAnalytics = Test & {
 };
 
 export const getTestsWithAnalytics = async (): Promise<TestWithAnalytics[]> => {
-    const { data, error } = await supabase.rpc('get_tests_with_analytics');
+    const { data: analyticsData, error: analyticsError } = await supabase.rpc('get_tests_with_analytics');
 
-    if (error) {
-        console.error("Error fetching tests with analytics from RPC:", error.message || error);
-        throw error;
+    if (analyticsError) {
+        console.error("Error fetching tests with analytics from RPC:", analyticsError.message || analyticsError);
+        throw analyticsError;
     }
+
+    // WORKAROUND: Fetch static test data to ensure we have 'banca' and other potentially missing fields from RPC
+    // caused by cached RPC definitions or missing columns in the view.
+    const { data: testsData, error: testsError } = await supabase
+        .from('tests')
+        .select('id, banca, course_id, module_id, discipline_id');
+
+    if (testsError) console.error("Error fetching tests metadata:", testsError);
+
+    // Fix: Explicitly type map values as 'any' to prevent 'unknown' inference error and ensure robust handling
+    const testsMap = new Map<string, any>();
+    if (testsData) {
+        testsData.forEach((t: any) => testsMap.set(t.id, t));
+    }
+
     // The RPC function is designed to return data in the correct shape, including camelCase.
-    return (data || []).map((test: any) => ({
-        ...test,
-        // Ensure nested properties are correctly mapped if RPC returns snake_case
-        test_type: test.test_type,
-        course_id: test.course_id,
-        module_id: test.module_id,
-        discipline_id: test.discipline_id,
-        duration_minutes: test.duration_minutes,
-        createdAt: test.createdAt,
-    }));
+    return ((analyticsData as any[]) || []).map((test: any) => {
+        const staticData = testsMap.get(test.id);
+        return {
+            ...test,
+            // Ensure nested properties are correctly mapped if RPC returns snake_case
+            test_type: test.test_type,
+            course_id: staticData?.course_id || test.course_id,
+            module_id: staticData?.module_id || test.module_id,
+            discipline_id: staticData?.discipline_id || test.discipline_id,
+            duration_minutes: test.duration_minutes,
+            createdAt: test.createdAt,
+            banca: staticData?.banca || test.banca
+        };
+    });
 };
 
 export const createTest = async (
     name: string,
     questions: QuizQuestion[],
     testType: 'fixed' | 'scheduled',
-    context?: { courseId?: string | null; moduleId?: string | null; disciplineId?: string | null; }
+    context?: { courseId?: string | null; moduleId?: string | null; disciplineId?: string | null; banca?: string | null }
 ): Promise<Test | null> => {
      if (!name.trim() || !questions || questions.length === 0) {
         console.error("Nome, tipo e questões são necessários.");
@@ -46,7 +65,8 @@ export const createTest = async (
             test_type: testType,
             course_id: context?.courseId || null,
             module_id: context?.moduleId || null,
-            discipline_id: context?.disciplineId || null
+            discipline_id: context?.disciplineId || null,
+            banca: context?.banca || null
         };
 
         const { data, error } = await supabase
@@ -121,6 +141,7 @@ export const getStudentAvailableTests = async (studentId: string): Promise<Stude
         discipline_id: test.discipline_id,
         duration_minutes: test.duration_minutes,
         createdAt: test.createdAt,
+        banca: test.banca
     }));
 };
 

@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
         { view: 'marketplace', label: 'Gestão da Loja', icon: ShoppingBagIcon }, // Novo Fase 4
         { view: 'gamification', label: 'Ranking Global', icon: TrophyIcon }, // Novo Fase 3
         { view: 'studyRooms', label: 'Salas de Estudo', icon: MessageCircleIcon }, // Novo Fase 4
-        { view: 'tests', label: 'Testes na Íntegra', icon: ClipboardListIcon },
+        { view: 'tests', label: 'Provas na Íntegra', icon: ClipboardListIcon },
         { view: 'crm', label: 'CRM de Alunos', icon: UsersIcon },
         { view: 'officialSummaries', label: 'Resumos Oficiais', icon: FileTextIcon },
         { view: 'trueFlashcards', label: 'Flashcards', icon: LayersIcon },

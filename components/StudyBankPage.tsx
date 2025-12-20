@@ -338,7 +338,12 @@ const StudyBankPage: React.FC = () => {
         columns.push({
             id: 'questionSets',
             title: 'Assuntos',
-            items: questionSets.map(qs => ({ id: qs.id, name: qs.subjectName, subTitle: `${qs.questions.length} questões`, imageUrl: qs.image_url })),
+            items: questionSets.map(qs => ({ 
+                id: qs.id, 
+                name: qs.subjectName, 
+                subTitle: `${qs.question_count ?? qs.questions?.length ?? 0} questões`, 
+                imageUrl: qs.image_url 
+            })),
             selectedId: viewingSet?.id || null,
             onSelect: (item) => setViewingSet(questionSets.find(qs => qs.id === item.id) || null),
             onEdit: (item) => setEditingItem({ item: questionSets.find(qs => qs.id === item.id), type: 'question_set' } as any),
@@ -362,7 +367,7 @@ const StudyBankPage: React.FC = () => {
         });
     }
 
-    const totalQuestions = allQuestionSets.reduce((acc, curr) => acc + curr.questions.length, 0);
+    const totalQuestions = allQuestionSets.reduce((acc, curr) => acc + (curr.question_count ?? curr.questions.length), 0);
 
     return (
         <div className="h-full w-full flex flex-col bg-gray-50 overflow-hidden">
@@ -531,7 +536,7 @@ const StudyBankPage: React.FC = () => {
                                                 </p>
                                                 <div className="mt-2 flex flex-wrap gap-2">
                                                     <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-md border border-gray-200">
-                                                        {qs.questions.length} Qs
+                                                        {qs.question_count ?? qs.questions.length} Qs
                                                     </span>
                                                     <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${qs.difficulty === 'Difícil' ? 'bg-red-50 text-red-600 border-red-100' : qs.difficulty === 'Fácil' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                                                         {qs.difficulty}

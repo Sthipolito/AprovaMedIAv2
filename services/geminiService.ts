@@ -24,7 +24,7 @@ const cleanJson = (text: string): string => {
 const quizQuestionSchema = {
     type: Type.OBJECT,
     properties: {
-        question: { type: Type.STRING, description: "O texto completo do enunciado da questão." },
+        question: { type: Type.STRING, description: "O texto completo do enunciado da questão (Caso clínico + Pergunta)." },
         options: {
             type: Type.ARRAY,
             items: { type: Type.STRING },
@@ -92,25 +92,27 @@ const extractQuestionsFromChunk = async (chunkText: string): Promise<QuizQuestio
     try {
         const ai = getAI();
         
-        const prompt = `Você é um especialista em processamento de provas médicas e concursos. Sua tarefa é analisar o texto abaixo e extrair questões estruturadas.
+        const prompt = `Você é um especialista em processamento de provas médicas e concursos. Sua tarefa é analisar o texto cru extraído de um PDF e reconstruir as questões de forma perfeita.
 
-        O texto pode estar em dois formatos principais. Identifique qual está sendo usado e extraia de acordo:
+        ATENÇÃO PARA ERROS COMUNS DE EXTRAÇÃO (CORRIJA-OS):
+        
+        1. **FUSÃO DE CONTEXTO (CRÍTICO):** 
+           - Muitas questões começam com um caso clínico longo (ex: "Paciente 45 anos, chega com dor...") seguido de um parágrafo curto de comando (ex: "Assinale a alternativa correta").
+           - ERRO COMUM: A IA pega apenas o comando ("Assinale...") e ignora o caso.
+           - CORREÇÃO: Você DEVE olhar para trás e incluir todo o parágrafo do caso clínico no campo 'question'. A questão deve ser completa.
 
-        FORMATO 1 (Questão e Comentário Vinculados por ID):
-        - As questões aparecem no início com um número identificador (ex: "9107)", "105.").
-        - Os gabaritos/comentários aparecem no final do texto com O MESMO número identificador (ex: "9107.", "105.").
-        - AÇÃO: Você DEVE cruzar essas informações. Extraia a questão do início e procure o comentário correspondente no final.
-        - Coloque o texto do comentário no campo 'explanation'.
-        - Extraia a resposta correta do texto do comentário (ex: "Resposta letra B") e preencha o 'correctAnswerIndex'.
+        2. **REMOÇÃO DE RUÍDO/LIXO:**
+           - Ignore palavras soltas que aparecem no meio das frases devido a colunas laterais (ex: "Tratamento", "Diagnóstico", "Concurso 2023"). Se uma frase for interrompida por uma palavra solta que não faz sentido gramatical, remova essa palavra e una a frase.
 
-        FORMATO 2 (Padrão):
-        - Questões seguidas imediatamente pelo gabarito ou com gabarito em tabela.
+        3. **FORMATOS DE PROVA:**
+           - FORMATO 1 (ID Vinculado): Questão "10." no início e Comentário "10." no final. Tente cruzar e preencher 'explanation'.
+           - FORMATO 2 (Padrão): Questão seguida de gabarito.
 
-        DIRETRIZES DE EXTRAÇÃO:
-        1. 'question': O texto do enunciado. Mantenha o ID (ex: "9107)") no início do texto da pergunta para facilitar a identificação.
-        2. 'options': Array com as alternativas.
-        3. 'explanation': O texto completo do "Comentário" do professor, se houver vínculo pelo ID.
-        4. 'correctAnswerIndex': O índice (0 para A, 1 para B...) da resposta correta. Tente inferir isso do bloco de comentários (ex: "Gabarito: A", "Resposta correta: B").
+        DIRETRIZES DE SAÍDA:
+        - 'question': O enunciado COMPLETO (Caso Clínico + Pergunta). Comece com o número (ex: "9107) Paciente...").
+        - 'options': Array com as alternativas limpas.
+        - 'explanation': Comentário do professor, se disponível.
+        - 'correctAnswerIndex': Índice numérico (0=A, 1=B...).
 
         TEXTO PARA ANÁLISE:
         """
@@ -137,16 +139,40 @@ const extractQuestionsFromChunk = async (chunkText: string): Promise<QuizQuestio
 
         const parsed = JSON.parse(cleanJson(jsonString));
         
-        // Post-process to ensure correctAnswerIndex is number or null, and other fields exist
-        const processedQuestions: QuizQuestion[] = parsed.map((q: any) => ({
-            question: q.question || '',
-            options: q.options || [],
-            correctAnswerIndex: q.correctAnswerIndex === undefined ? null : q.correctAnswerIndex,
-            explanation: q.explanation || '',
-            mediaUrl: q.mediaUrl || undefined,
-        }));
+        // --- FILTRO DE SANIDADE (Sanity Check Filter) ---
+        // Remove questões quebradas, incompletas ou "lixo" que a IA alucinou.
+        const validQuestions: QuizQuestion[] = parsed
+            .map((q: any) => ({
+                question: q.question ? q.question.trim() : '',
+                options: q.options || [],
+                correctAnswerIndex: q.correctAnswerIndex === undefined ? null : q.correctAnswerIndex,
+                explanation: q.explanation || '',
+                mediaUrl: q.mediaUrl || undefined,
+            }))
+            .filter((q: QuizQuestion) => {
+                // Regra 1: Texto muito curto geralmente é lixo ou apenas o comando ("Assinale a correta")
+                // Se tiver menos de 15 caracteres, descarta.
+                if (q.question.length < 15) return false;
 
-        return processedQuestions;
+                // Regra 2: Se começar com termos genéricos E for curta (< 60 chars), provavel que perdeu o contexto (caso clínico)
+                const lowerQ = q.question.toLowerCase();
+                const genericStarts = ["assinale", "marque", "sobre o caso", "a alternativa", "qual a conduta"];
+                if (q.question.length < 60 && genericStarts.some(s => lowerQ.includes(s))) {
+                    // Mas aceitamos se for uma pergunta direta curta ex: "Qual a capital do Brasil?"
+                    // Então verificamos se parece um comando solto.
+                    return false; 
+                }
+
+                // Regra 3: Deve ter pelo menos 2 opções para ser uma questão válida
+                if (q.options.length < 2) return false;
+
+                // Regra 4: Opções não podem ser vazias
+                if (q.options.some(opt => !opt || opt.trim() === "")) return false;
+
+                return true;
+            });
+
+        return validQuestions;
 
     } catch (error: any) {
         console.error("Erro ao extrair questões de um chunk:", error.message || error);

@@ -18,6 +18,7 @@ interface AdvancedFilterPanelProps {
     setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
     onApply: () => void;
     onClear: () => void;
+    institutionLabel?: string; // Optional prop for custom label
 }
 
 const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
@@ -30,6 +31,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
     setFilters,
     onApply,
     onClear,
+    institutionLabel = "Instituição" // Default value
 }) => {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
@@ -191,9 +193,9 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                         </div>
                     </section>
 
-                    {/* Institutions */}
+                    {/* Institutions (or Banca) */}
                     <section>
-                        <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Instituição</h3>
+                        <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">{institutionLabel}</h3>
                         <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar">
                             {availableInstitutions.length > 0 ? availableInstitutions.map(inst => {
                                 const isSelected = localFilters.selectedInstitutions.includes(inst);
@@ -211,7 +213,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                                         {inst}
                                     </button>
                                 );
-                            }) : <p className="text-sm text-gray-400 italic">Nenhuma instituição identificada nos títulos.</p>}
+                            }) : <p className="text-sm text-gray-400 italic">Nenhuma instituição identificada.</p>}
                         </div>
                     </section>
 
