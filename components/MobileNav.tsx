@@ -30,7 +30,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ currentView, setCurrentView }) =>
                                 isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-600'
                             }`}
                         >
-                            <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                            <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
                             <span className="text-[10px] font-medium">{item.label}</span>
                         </button>
                     );

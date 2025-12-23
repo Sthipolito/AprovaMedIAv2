@@ -202,7 +202,7 @@ const AcademicManagementPage: React.FC = () => {
     }
 
     return (
-        <div className="h-full w-full flex flex-col bg-gray-50 overflow-hidden">
+        <div className="h-full w-full flex flex-col bg-gray-50 overflow-y-auto md:overflow-hidden">
             {/* Hero Section */}
             <div className="bg-white border-b border-gray-200 p-8 flex-shrink-0 relative z-20 shadow-sm">
                 <div className="flex justify-between items-start mb-8">
@@ -255,17 +255,17 @@ const AcademicManagementPage: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <main className="flex-grow bg-gray-50 overflow-hidden p-6">
+            <main className="flex-grow bg-gray-50 p-6 flex flex-col md:overflow-hidden">
                 {isLoading ? (
-                    <div className="flex justify-center items-center h-full"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+                    <div className="flex justify-center items-center h-full min-h-[200px]"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
                 ) : viewMode === 'finder' ? (
-                    <div className="h-full w-full rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+                    <div className="h-[500px] md:h-full w-full rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex-shrink-0">
                         <ColumnNavigation columns={columns} />
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col">
+                    <div className="h-auto md:h-full flex flex-col">
                         {/* Breadcrumbs */}
-                        <nav className="flex items-center text-sm text-gray-500 mb-6 px-2">
+                        <nav className="flex items-center text-sm text-gray-500 mb-6 px-2 flex-shrink-0">
                             <button onClick={() => { setExplorerCourse(null); setExplorerModule(null); }} className="hover:text-primary font-medium transition-colors">Todos os Cursos</button>
                             {explorerCourse && (
                                 <>
@@ -282,7 +282,7 @@ const AcademicManagementPage: React.FC = () => {
                         </nav>
 
                         {/* Grid */}
-                        <div className="flex-grow overflow-y-auto custom-scrollbar">
+                        <div className="flex-grow h-auto md:overflow-y-auto custom-scrollbar">
                             {filteredExplorerItems.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-10">
                                     {filteredExplorerItems.map((item: any) => (

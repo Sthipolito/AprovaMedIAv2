@@ -370,7 +370,7 @@ const StudyBankPage: React.FC = () => {
     const totalQuestions = allQuestionSets.reduce((acc, curr) => acc + (curr.question_count ?? curr.questions.length), 0);
 
     return (
-        <div className="h-full w-full flex flex-col bg-gray-50 overflow-hidden">
+        <div className="h-full w-full flex flex-col bg-gray-50 overflow-y-auto md:overflow-hidden">
             {/* Hero Metrics & Spotlight Section */}
             <div className="bg-white border-b border-gray-200 p-8 flex-shrink-0 shadow-sm relative z-20">
                 {/* ... existing header content ... */}
@@ -480,16 +480,16 @@ const StudyBankPage: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-grow bg-gray-50 overflow-hidden p-6 relative">
+            <main className="flex-grow bg-gray-50 p-6 relative flex flex-col md:overflow-hidden">
                 {isLoading ? (
-                    <div className="flex justify-center items-center h-full"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+                    <div className="flex justify-center items-center h-full min-h-[200px]"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
                 ) : viewMode === 'columns' && !isFiltering ? (
-                     <div className="h-full w-full rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+                     <div className="h-[500px] md:h-full w-full rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex-shrink-0">
                         <ColumnNavigation columns={columns} />
                     </div>
                 ) : (
                     // Grid View (Explorer)
-                    <div className="h-full overflow-y-auto custom-scrollbar">
+                    <div className="h-auto md:h-full md:overflow-y-auto custom-scrollbar">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-gray-700">
                                 {isFiltering ? `Resultados da Busca (${filteredResults.length})` : `Todos os Assuntos (${allQuestionSets.length})`}
