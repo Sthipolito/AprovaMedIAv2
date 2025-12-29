@@ -1,13 +1,16 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { QuizQuestion, TrueFlashcard } from '../types';
 
 // Helper para obter a instância da IA apenas quando necessário
 const getAI = () => {
-    if (!process.env.API_KEY) {
+    // Obtém a chave exclusivamente de process.env.API_KEY conforme diretrizes
+    const apiKey = process.env.API_KEY;
+
+    if (!apiKey) {
+        console.error("ERRO CRÍTICO: API Key não encontrada. Configure API_KEY.");
         throw new Error("API_KEY environment variable not set");
     }
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: apiKey });
 };
 
 const MODEL_NAME = 'gemini-3-flash-preview';
@@ -83,7 +86,7 @@ export const answerQuestion = async (pdfText: string, userQuestion: string): Pro
         return response.text || "Não consegui gerar uma resposta.";
     } catch (error: any) {
         console.error("Erro ao responder pergunta:", error.message || error);
-        return "Desculpe, encontrei um erro ao processar sua solicitação.";
+        return "Desculpe, encontrei um erro ao processar sua solicitação. Verifique sua conexão ou a chave de API.";
     }
 };
 
